@@ -1,0 +1,340 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { extractFileId, isFolderUrl, toDownloadUrl, toThumbnailUrl, toHighResPreviewUrl, detectType, fetchFolderContents } from '@/utils/gdrive'
+
+const STORAGE_KEY = 'gdrive-gallery-v3'
+const API_KEY_STORAGE = 'gdrive-api-key'
+
+// Prioritas API Key:
+// 1. Dari Environment Variable Vite (.env / GitHub Actions Secrets) -> VITE_GDRIVE_API_KEY
+// 2. Dari LocalStorage pengguna jika ada
+const envApiKey = import.meta.env.VITE_GDRIVE_API_KEY || ''
+
+export const useGalleryStore = defineStore('gallery', () => {
+  // ─── State ────────────────────────────────────────────────
+  const items = ref(loadFromStorage())
+  const apiKey = ref(envApiKey || localStorage.getItem(API_KEY_STORAGE) || '')
+  const activeItem = ref(null)
+  const compareA = ref(null)
+  const compareB = ref(null)
+
+  // Folder Breadcrumbs & Navigation Stack
+  const folderStack = ref([])
+  const isNavigatingFolder = ref(false)
+
+  // Selection state (Array of file IDs)
+  const selectedIds = ref([])
+
+  // UI state
+  const filter = ref('all') // 'all' | 'folder' | 'photo' | 'video'
+  const viewMode = ref('grid') // 'grid' | 'splitscreen'
+  const sortOrder = ref('newest') // 'newest' | 'oldest' | 'name'
+  const isSettingsOpen = ref(false)
+
+  // Modal Dialog State (replacing native alert/confirm)
+  const dialog = ref({
+    isOpen: false,
+    title: '',
+    message: '',
+    icon: 'ℹ️',
+    confirmText: 'OK',
+    cancelText: 'Batal',
+    showCancel: false,
+    isDanger: false,
+    onConfirm: null,
+    onCancel: null,
+  })
+
+  // ─── Computed ─────────────────────────────────────────────
+  const currentFolderName = computed(() => {
+    if (folderStack.value.length === 0) return ''
+    return folderStack.value[folderStack.value.length - 1].name
+  })
+
+  const filteredItems = computed(() => {
+    let list = [...items.value]
+
+    if (filter.value !== 'all') {
+      list = list.filter(item => item.type === filter.value)
+    }
+
+    if (sortOrder.value === 'newest') {
+      list.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0))
+    } else if (sortOrder.value === 'oldest') {
+      list.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0))
+    } else if (sortOrder.value === 'name') {
+      list.sort((a, b) => (a.name || a.label || '').localeCompare(b.name || b.label || ''))
+    }
+
+    return list
+  })
+
+  const folderCount = computed(() => items.value.filter(i => i.isFolder || i.type === 'folder').length)
+  const photoCount = computed(() => items.value.filter(i => i.type === 'photo').length)
+  const videoCount = computed(() => items.value.filter(i => i.type === 'video').length)
+  const totalCount = computed(() => items.value.length)
+  const selectedCount = computed(() => selectedIds.value.length)
+  const isAllSelected = computed(() => {
+    const selectable = filteredItems.value.filter(i => !i.isFolder)
+    if (selectable.length === 0) return false
+    return selectable.every(i => selectedIds.value.includes(i.id))
+  })
+
+  const selectedItems = computed(() => {
+    return items.value.filter(i => selectedIds.value.includes(i.id))
+  })
+
+  const activeIndex = computed(() => {
+    if (!activeItem.value) return -1
+    return filteredItems.value.findIndex(i => i.id === activeItem.value.id)
+  })
+
+  // ─── Dialog Actions ───────────────────────────────────────
+  function showModal({ title, message, icon = 'ℹ️', confirmText = 'OK', cancelText = 'Batal', showCancel = false, isDanger = false, onConfirm, onCancel }) {
+    dialog.value = {
+      isOpen: true,
+      title,
+      message,
+      icon,
+      confirmText,
+      cancelText,
+      showCancel,
+      isDanger,
+      onConfirm: onConfirm || null,
+      onCancel: onCancel || null,
+    }
+  }
+
+  function closeModal() {
+    dialog.value.isOpen = false
+  }
+
+  // ─── Actions ──────────────────────────────────────────────
+  function setApiKey(key) {
+    apiKey.value = key.trim()
+    localStorage.setItem(API_KEY_STORAGE, apiKey.value)
+  }
+
+  function addItems(newItems) {
+    let addedCount = 0
+    for (const item of newItems) {
+      if (!items.value.some(existing => existing.id === item.id)) {
+        items.value.push({
+          ...item,
+          addedAt: Date.now() + addedCount
+        })
+        addedCount++
+      }
+    }
+    saveToStorage()
+    return addedCount
+  }
+
+  function addSingleUrl(url, manualType = null) {
+    const id = extractFileId(url)
+    if (!id) return 0
+    if (items.value.some(i => i.id === id)) return 0
+
+    const isFolder = isFolderUrl(url)
+    const type = manualType || (isFolder ? 'folder' : detectType(url))
+
+    const newItem = {
+      id,
+      name: `File ${id.slice(0, 8)}`,
+      label: `File ${id.slice(0, 8)}`,
+      type,
+      isFolder,
+      rawUrl: url,
+      downloadUrl: toDownloadUrl(id),
+      thumbUrl: toThumbnailUrl(id),
+      highResUrl: toHighResPreviewUrl(id),
+      iframePreviewUrl: isFolder
+        ? `https://drive.google.com/embeddedfolderview?id=${id}#grid`
+        : `https://drive.google.com/file/d/${id}/preview`,
+      addedAt: Date.now()
+    }
+
+    items.value.push(newItem)
+    saveToStorage()
+    return 1
+  }
+
+  function removeItem(id) {
+    items.value = items.value.filter(i => i.id !== id)
+    selectedIds.value = selectedIds.value.filter(sId => sId !== id)
+    if (activeItem.value?.id === id) activeItem.value = null
+    if (compareA.value?.id === id) compareA.value = null
+    if (compareB.value?.id === id) compareB.value = null
+    saveToStorage()
+  }
+
+  function clearAll() {
+    items.value = []
+    selectedIds.value = []
+    folderStack.value = []
+    activeItem.value = null
+    compareA.value = null
+    compareB.value = null
+    saveToStorage()
+  }
+
+  /** Hapus Cache Mutlak (Clear total storage & reload) */
+  function clearAbsoluteCache() {
+    localStorage.clear()
+    sessionStorage.clear()
+    items.value = []
+    selectedIds.value = []
+    folderStack.value = []
+    activeItem.value = null
+    compareA.value = null
+    compareB.value = null
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => caches.delete(name))
+      })
+    }
+    window.location.reload()
+  }
+
+  // ─── Subfolder Navigation ─────────────────────────────────
+  async function enterSubfolder(folderItem) {
+    if (!apiKey.value) {
+      showModal({
+        title: 'API Key Diperlukan',
+        message: 'Masukkan Google Drive API Key terlebih dahulu untuk menjelajahi subfolder.',
+        icon: '🔑',
+        confirmText: 'Buka Pengaturan',
+        onConfirm: () => {
+          isSettingsOpen.value = true
+        }
+      })
+      return
+    }
+
+    isNavigatingFolder.value = true
+    try {
+      const { folderName, items: folderItems } = await fetchFolderContents(folderItem.id, apiKey.value)
+      folderStack.value.push({
+        id: folderItem.id,
+        name: folderItem.name || folderName || 'Subfolder'
+      })
+      items.value = folderItems
+      selectedIds.value = []
+      saveToStorage()
+    } catch (e) {
+      showModal({
+        title: 'Gagal Membuka Subfolder',
+        message: e.message || 'Terjadi kesalahan saat membuka subfolder.',
+        icon: '❌'
+      })
+    } finally {
+      isNavigatingFolder.value = false
+    }
+  }
+
+  async function goToBreadcrumb(index) {
+    if (index === folderStack.value.length - 1) return
+    const target = folderStack.value[index]
+    isNavigatingFolder.value = true
+    try {
+      const { items: folderItems } = await fetchFolderContents(target.id, apiKey.value)
+      folderStack.value = folderStack.value.slice(0, index + 1)
+      items.value = folderItems
+      selectedIds.value = []
+      saveToStorage()
+    } catch (e) {
+      showModal({
+        title: 'Gagal Navigasi Folder',
+        message: e.message || 'Tidak dapat memuat folder sebelumnya.',
+        icon: '❌'
+      })
+    } finally {
+      isNavigatingFolder.value = false
+    }
+  }
+
+  // ─── Selection Actions ────────────────────────────────────
+  function toggleSelect(id) {
+    if (selectedIds.value.includes(id)) {
+      selectedIds.value = selectedIds.value.filter(sId => sId !== id)
+    } else {
+      selectedIds.value.push(id)
+    }
+  }
+
+  function selectAll() {
+    const ids = filteredItems.value.filter(i => !i.isFolder).map(i => i.id)
+    selectedIds.value = Array.from(new Set([...selectedIds.value, ...ids]))
+  }
+
+  function deselectAll() {
+    selectedIds.value = []
+  }
+
+  // ─── Preview navigation ───────────────────────────────────
+  function openPreview(item) {
+    if (item.isFolder) {
+      enterSubfolder(item)
+      return
+    }
+    activeItem.value = item
+  }
+
+  function closePreview() {
+    activeItem.value = null
+  }
+
+  function prevItem() {
+    const idx = activeIndex.value
+    if (idx > 0) activeItem.value = filteredItems.value[idx - 1]
+  }
+
+  function nextItem() {
+    const idx = activeIndex.value
+    if (idx < filteredItems.value.length - 1) {
+      activeItem.value = filteredItems.value[idx + 1]
+    }
+  }
+
+  // ─── Split Screen ─────────────────────────────────────────
+  function setCompareA(item) { compareA.value = item }
+  function setCompareB(item) { compareB.value = item }
+  function swapCompare() {
+    const temp = compareA.value
+    compareA.value = compareB.value
+    compareB.value = temp
+  }
+  function clearCompare() {
+    compareA.value = null
+    compareB.value = null
+  }
+
+  // ─── Storage Helpers ──────────────────────────────────────
+  function saveToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items.value))
+    } catch {
+      // ignore
+    }
+  }
+
+  function loadFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  }
+
+  return {
+    items, apiKey, activeItem, compareA, compareB, selectedIds, filter, viewMode, sortOrder, isSettingsOpen, dialog,
+    folderStack, isNavigatingFolder, currentFolderName,
+    filteredItems, folderCount, photoCount, videoCount, totalCount, selectedCount, isAllSelected, selectedItems, activeIndex,
+    setApiKey, addItems, addSingleUrl, removeItem, clearAll, clearAbsoluteCache, enterSubfolder, goToBreadcrumb,
+    showModal, closeModal,
+    toggleSelect, selectAll, deselectAll,
+    openPreview, closePreview, prevItem, nextItem,
+    setCompareA, setCompareB, swapCompare, clearCompare,
+  }
+})
