@@ -5,7 +5,7 @@
     <div class="flex items-center justify-between bg-white p-3 border-2 border-zinc-900 rounded-neo shadow-neo-sm">
       <div class="flex items-center gap-2">
         <span class="text-base font-bold">⊟</span>
-        <h2 class="font-extrabold text-xs text-zinc-900">Perbandingan Media Berdampingan</h2>
+        <h2 class="font-extrabold text-xs text-zinc-900">Komparasi Berkas Berdampingan (Split Screen)</h2>
       </div>
 
       <div class="flex items-center gap-2">
@@ -20,7 +20,7 @@
           @click="gallery.clearCompare"
           class="px-2.5 py-1 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-zinc-900 rounded"
         >
-          Bersihkan
+          Kosongkan Panel
         </button>
         <button
           @click="gallery.viewMode = 'grid'"
@@ -46,7 +46,7 @@
           <button
             v-if="gallery.compareA"
             @click="gallery.setCompareA(null)"
-            class="text-xs text-rose-500 font-bold"
+            class="text-xs text-rose-500 font-bold hover:underline"
           >
             Lepas
           </button>
@@ -65,7 +65,7 @@
           />
           <div v-else class="text-center p-6 text-zinc-400 space-y-2">
             <p class="text-3xl">📷</p>
-            <p class="text-xs font-bold">Pilih foto dari galeri untuk dimasukkan ke Panel A</p>
+            <p class="text-xs font-bold">Pilih berkas dari galeri untuk dimasukkan ke Panel A</p>
           </div>
         </div>
       </div>
@@ -82,7 +82,7 @@
           <button
             v-if="gallery.compareB"
             @click="gallery.setCompareB(null)"
-            class="text-xs text-rose-500 font-bold"
+            class="text-xs text-rose-500 font-bold hover:underline"
           >
             Lepas
           </button>
@@ -101,7 +101,7 @@
           />
           <div v-else class="text-center p-6 text-zinc-400 space-y-2">
             <p class="text-3xl">🎬</p>
-            <p class="text-xs font-bold">Pilih foto dari galeri untuk dimasukkan ke Panel B</p>
+            <p class="text-xs font-bold">Pilih berkas dari galeri untuk dimasukkan ke Panel B</p>
           </div>
         </div>
       </div>

@@ -11,7 +11,7 @@
           <span class="w-6 h-6 rounded-full bg-amber-400 text-zinc-900 font-extrabold text-xs flex items-center justify-center">
             {{ gallery.selectedCount }}
           </span>
-          <span class="text-xs font-bold tracking-tight">Foto/Video Terpilih</span>
+          <span class="text-xs font-bold tracking-tight">Berkas Terpilih</span>
           <button
             @click="gallery.deselectAll"
             class="text-[11px] text-zinc-400 hover:text-white underline ml-1"
@@ -31,17 +31,17 @@
           >
             <span v-if="isZipping" class="animate-spin text-xs">⏳</span>
             <span v-else>📦</span>
-            <span>{{ isZipping ? zipProgress : 'Download Paket (.ZIP)' }}</span>
+            <span>{{ isZipping ? zipProgress : 'Unduh Arsip (.ZIP)' }}</span>
           </button>
 
           <!-- Download Files Individually -->
           <button
             @click="handleDownloadIndividual"
             class="btn-neo bg-cyan-300 hover:bg-cyan-400 text-zinc-900 text-xs px-3 py-2 flex items-center gap-1 flex-1 sm:flex-initial"
-            title="Download file satu per satu langsung"
+            title="Unduh berkas terpilih secara langsung"
           >
             <span>⬇️</span>
-            <span>Satu per Satu</span>
+            <span>Unduh Parsial</span>
           </button>
 
         </div>
@@ -72,7 +72,6 @@ async function handleDownloadZip() {
   for (const item of gallery.selectedItems) {
     try {
       zipProgress.value = `Mengunduh (${completed + 1}/${total})...`
-      // Fetch image blob via high-res preview URL or uc?export
       const downloadUrl = `https://drive.google.com/thumbnail?id=${item.id}&sz=w2500`
       const res = await fetch(downloadUrl)
       if (res.ok) {
@@ -81,18 +80,17 @@ async function handleDownloadZip() {
         zip.file(filename, blob)
       }
     } catch (e) {
-      console.warn('Gagal unduh file untuk zip:', item.id, e)
+      console.warn('Gagal unduh berkas untuk arsip zip:', item.id, e)
     }
     completed++
   }
 
-  zipProgress.value = 'Mengemas file ZIP...'
+  zipProgress.value = 'Mengompresi berkas ZIP...'
   const content = await zip.generateAsync({ type: 'blob' })
   
-  // Trigger file download
   const a = document.createElement('a')
   a.href = URL.createObjectURL(content)
-  a.download = `dokumentasi_recap_${Date.now()}.zip`
+  a.download = `arsip_dokumentasi_${Date.now()}.zip`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
@@ -111,7 +109,7 @@ function handleDownloadIndividual() {
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-    }, index * 400) // Delay to prevent browser popup block
+    }, index * 400)
   })
 }
 </script>

@@ -1,15 +1,15 @@
 <template>
   <div class="neo-card p-5 space-y-4">
     
-    <!-- Title -->
+    <!-- Title & Description -->
     <div class="flex items-center justify-between border-b-2 border-zinc-900 pb-3">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-md bg-cyan-300 border-2 border-zinc-900 shadow-neo-sm flex items-center justify-center font-bold text-sm">
           +
         </div>
         <div>
-          <h2 class="font-extrabold text-sm text-zinc-900">Buka Folder Baru (Buka di Window Tab Baru)</h2>
-          <p class="text-[11px] text-zinc-500 font-medium">Setiap link folder Google Drive akan otomatis dibuka di tab window tersendiri</p>
+          <h2 class="font-extrabold text-sm text-zinc-900">Impor Berkas Google Drive</h2>
+          <p class="text-[11px] text-zinc-500 font-medium">Tautan folder akan otomatis dimuat ke dalam tab jendela terpisah</p>
         </div>
       </div>
     </div>
@@ -21,7 +21,7 @@
           v-model="inputUrl"
           @keydown.enter.ctrl="handleSubmit"
           rows="2"
-          placeholder="Paste link Google Drive di sini (bisa multi-link, setiap link folder akan dibuka di tab baru)..."
+          placeholder="Tempelkan tautan folder atau berkas Google Drive publik di sini (mendukung multi-tautan, satu per baris)..."
           class="neo-input resize-none text-xs leading-relaxed font-mono py-2.5"
         />
         
@@ -37,7 +37,7 @@
         
         <!-- Examples -->
         <div class="flex items-center gap-1.5 flex-wrap text-[11px]">
-          <span class="font-bold text-zinc-400">Contoh:</span>
+          <span class="font-bold text-zinc-400">Contoh Tautan:</span>
           <button
             @click="inputUrl = sampleFolder"
             class="px-2 py-0.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-900 rounded font-semibold text-zinc-800 transition-colors"
@@ -48,7 +48,7 @@
             @click="inputUrl = sampleFile"
             class="px-2 py-0.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-900 rounded font-semibold text-zinc-800 transition-colors"
           >
-            🖼️ File Tunggal
+            🖼️ Berkas Satuan
           </button>
         </div>
 
@@ -94,7 +94,7 @@ import { extractFileId, isFolderUrl, fetchFolderContents } from '@/utils/gdrive'
 const gallery = useGalleryStore()
 const inputUrl = ref('')
 const isLoading = ref(false)
-const loadingStatus = ref('Memproses...')
+const loadingStatus = ref('Memproses berkas...')
 const feedbackMsg = ref('')
 const feedbackType = ref('success')
 
@@ -109,14 +109,13 @@ async function handleSubmit() {
   const lines = text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean)
   if (lines.length === 0) return
 
-  // Check API Key if folder included
   const hasFolder = lines.some(l => isFolderUrl(l))
   if (hasFolder && !gallery.apiKey) {
     gallery.showModal({
-      title: 'API Key Diperlukan',
-      message: 'Google Drive API Key belum disetel. Buka menu input API Key untuk mengonfigurasi.',
+      title: 'Autentikasi API Diperlukan',
+      message: 'Google Drive API Key belum dikonfigurasi. Silakan lengkapi pengaturan kredensial Anda untuk melanjutkan pembacaan folder.',
       icon: '🔑',
-      confirmText: 'Buka Input Manual',
+      confirmText: 'Buka Pengaturan',
       onConfirm: () => {
         gallery.isSettingsOpen = true
       }
@@ -132,21 +131,20 @@ async function handleSubmit() {
     const line = lines[i]
     const id = extractFileId(line)
     if (!id) {
-      errors.push(`URL tidak valid: ${line.slice(0, 30)}...`)
+      errors.push(`Format tautan tidak dikenali: ${line.slice(0, 30)}...`)
       continue
     }
 
     if (isFolderUrl(line)) {
-      loadingStatus.value = `Membuka tab folder (${i + 1}/${lines.length})...`
+      loadingStatus.value = `Menginisialisasi folder (${i + 1}/${lines.length})...`
       try {
         const { folderName, items } = await fetchFolderContents(id, gallery.apiKey)
         gallery.createTab(id, folderName || `Folder ${id.slice(0, 6)}`, items)
         tabsCreated++
       } catch (err) {
-        errors.push(err.message || `Gagal memuat folder ${id}`)
+        errors.push(err.message || `Gagal mengakses folder ${id}`)
       }
     } else {
-      // Single file added to active tab (or new tab if none)
       const added = gallery.addSingleUrl(line)
       if (added > 0) tabsCreated++
     }
@@ -156,7 +154,7 @@ async function handleSubmit() {
 
   if (tabsCreated > 0) {
     feedbackType.value = 'success'
-    feedbackMsg.value = `Berhasil membuka ${tabsCreated} tab folder baru!`
+    feedbackMsg.value = `Berhasil menginisialisasi ${tabsCreated} tab folder baru ke dalam sesi.`
     inputUrl.value = ''
   } else if (errors.length > 0) {
     feedbackType.value = 'error'

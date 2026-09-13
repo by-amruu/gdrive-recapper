@@ -4,10 +4,10 @@
     <!-- Subfolder Breadcrumbs Bar -->
     <div
       v-if="gallery.folderStack.length > 0"
-      class="flex items-center gap-2 px-4 py-2.5 bg-amber-100/70 border-2 border-zinc-900 rounded-neo shadow-neo-sm overflow-x-auto"
+      class="flex items-center gap-2 px-4 py-2 bg-amber-100/70 border-2 border-zinc-900 rounded-neo shadow-neo-sm overflow-x-auto"
     >
       <span class="text-xs font-bold text-zinc-600 flex items-center gap-1">
-        📁 Lokasi:
+        📁 Direktori:
       </span>
       <div class="flex items-center gap-1.5 text-xs font-bold">
         <template v-for="(crumb, idx) in gallery.folderStack" :key="crumb.id">
@@ -28,7 +28,7 @@
       </div>
 
       <span v-if="gallery.isNavigatingFolder" class="ml-auto text-xs font-bold text-zinc-700 animate-pulse flex items-center gap-1">
-        <span>⏳</span> Membuka subfolder...
+        <span>⏳</span> Memuat subdirektori...
       </span>
     </div>
 
@@ -66,7 +66,7 @@
           class="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-900 rounded text-xs font-bold text-zinc-800 transition-colors flex items-center gap-1.5"
         >
           <span>{{ gallery.isAllSelected ? '☒' : '☑' }}</span>
-          <span>{{ gallery.isAllSelected ? 'Batalkan Semua' : 'Pilih Semua' }}</span>
+          <span>{{ gallery.isAllSelected ? 'Batalkan Pilihan' : 'Pilih Semua' }}</span>
         </button>
 
         <!-- Sort Dropdown -->
@@ -74,9 +74,9 @@
           v-model="gallery.sortOrder"
           class="px-2.5 py-1.5 bg-white border border-zinc-900 rounded text-xs font-bold text-zinc-800 outline-none cursor-pointer"
         >
-          <option value="newest">↓ Terbaru</option>
-          <option value="oldest">↑ Terlama</option>
-          <option value="name">A-Z Nama File</option>
+          <option value="newest">↓ Waktu Ditambahkan</option>
+          <option value="oldest">↑ Urutan Terlama</option>
+          <option value="name">A–Z Nama Berkas</option>
         </select>
 
       </div>
@@ -93,10 +93,10 @@ const gallery = useGalleryStore()
 
 const filterTabs = computed(() => {
   const tabs = [
-    { value: 'all', icon: '🗂️', label: 'Semua', count: gallery.totalCount },
+    { value: 'all', icon: '🗂️', label: 'Semua Berkas', count: gallery.totalCount },
   ]
   if (gallery.folderCount > 0) {
-    tabs.push({ value: 'folder', icon: '📁', label: 'Folder', count: gallery.folderCount })
+    tabs.push({ value: 'folder', icon: '📁', label: 'Direktori', count: gallery.folderCount })
   }
   tabs.push(
     { value: 'photo', icon: '📷', label: 'Foto', count: gallery.photoCount },

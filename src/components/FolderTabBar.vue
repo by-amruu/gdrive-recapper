@@ -46,8 +46,8 @@ const gallery = useGalleryStore()
 
 function confirmCloseTab(tab) {
   gallery.showModal({
-    title: 'Tutup Tab Folder?',
-    message: `Apakah Anda yakin ingin menutup tab "${tab.name}"? File di dalam tab ini akan dibersihkan dari sesi Anda.`,
+    title: 'Tutup Tab Direktori',
+    message: `Apakah Anda yakin ingin menutup tab "${tab.name}"? Berkas dalam direktori ini akan dikeluarkan dari sesi aktif.`,
     icon: '📂',
     confirmText: 'Tutup Tab',
     isDanger: true,

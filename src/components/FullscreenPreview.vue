@@ -20,7 +20,7 @@
                 {{ item.name || item.label || item.id }}
               </p>
               <span class="text-xs text-zinc-400 hidden sm:inline">
-                ({{ gallery.activeIndex + 1 }} / {{ gallery.filteredItems.length }})
+                ({{ gallery.activeIndex + 1 }} dari {{ gallery.filteredItems.length }})
               </span>
             </div>
 
@@ -34,7 +34,7 @@
                   isSelected ? 'bg-amber-400 text-zinc-900 shadow-neo-sm' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
                 ]"
               >
-                <span>{{ isSelected ? '✓ Terpilih' : '+ Pilih' }}</span>
+                <span>{{ isSelected ? '✓ Terpilih' : '+ Tandai' }}</span>
               </button>
 
               <!-- Download Button -->
@@ -43,17 +43,17 @@
                 target="_blank"
                 rel="noopener"
                 class="btn-neo-cyan text-xs px-3.5 py-1.5"
-                title="Download file ini langsung"
+                title="Unduh berkas resolusi asli"
               >
                 <span>⬇️</span>
-                <span class="hidden sm:inline">Download</span>
+                <span class="hidden sm:inline">Unduh Berkas</span>
               </a>
 
               <!-- Close Button -->
               <button
                 @click="gallery.closePreview"
                 class="w-8 h-8 flex items-center justify-center font-bold text-sm bg-zinc-100 hover:bg-zinc-200 border border-zinc-900 rounded"
-                title="Tutup (ESC)"
+                title="Tutup Pratinjau (ESC)"
               >
                 ✕
               </button>
@@ -77,10 +77,10 @@
             <!-- Native Image Preview -->
             <div class="w-full h-full flex items-center justify-center p-2 relative">
               <div v-if="imgLoading" class="absolute inset-0 flex items-center justify-center text-white text-xs font-bold gap-2">
-                <span class="animate-spin text-lg">⏳</span> Memuat Preview HD...
+                <span class="animate-spin text-lg">⏳</span> Memuat Resolusi Tinggi...
               </div>
 
-              <!-- High-Res Image with referrerpolicy and error fallback to iframe if needed -->
+              <!-- High-Res Image -->
               <img
                 v-if="item.type !== 'video' && !useIframeFallback"
                 :key="item.id + '-' + previewSrc"
@@ -92,7 +92,7 @@
                 @error="handleImgPreviewError"
               />
 
-              <!-- Iframe Preview (for video or when direct image load is restricted) -->
+              <!-- Iframe Preview -->
               <iframe
                 v-else
                 :key="item.id + '-frame'"
@@ -117,7 +117,7 @@
 
           <!-- Bottom Shortcut Tip -->
           <div class="text-center text-[11px] font-semibold text-zinc-500 pt-2">
-            Gunakan tombol <kbd class="px-1 py-0.5 bg-zinc-200 border border-zinc-400 rounded text-[10px]">←</kbd> <kbd class="px-1 py-0.5 bg-zinc-200 border border-zinc-400 rounded text-[10px]">→</kbd> untuk geser foto, dan <kbd class="px-1 py-0.5 bg-zinc-200 border border-zinc-400 rounded text-[10px]">ESC</kbd> untuk menutup.
+            Navigasi: <kbd class="px-1.5 py-0.5 bg-zinc-200 border border-zinc-400 rounded text-[10px]">←</kbd> <kbd class="px-1.5 py-0.5 bg-zinc-200 border border-zinc-400 rounded text-[10px]">→</kbd> Navigasi Berkas &bull; <kbd class="px-1.5 py-0.5 bg-zinc-200 border border-zinc-400 rounded text-[10px]">Spasi</kbd> Tandai Pilihan &bull; <kbd class="px-1.5 py-0.5 bg-zinc-200 border border-zinc-400 rounded text-[10px]">ESC</kbd> Tutup
           </div>
 
         </div>
@@ -154,7 +154,6 @@ function handleImgPreviewError() {
   if (previewStep.value < 2) {
     previewStep.value++
   } else {
-    // If all direct image URLs are blocked by browser/drive CORS, fallback to clean /preview iframe
     useIframeFallback.value = true
   }
 }

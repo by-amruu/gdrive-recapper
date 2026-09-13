@@ -9,7 +9,7 @@
     @click="handleCardClick"
   >
     
-    <!-- Top Image / Folder Container: Fleksibel tanpa pemaksaan aspect-[4/3] kaku -->
+    <!-- Top Image / Folder Container -->
     <div class="relative w-full bg-zinc-100 border-b-2 border-zinc-900 overflow-hidden flex items-center justify-center min-h-[140px]">
       
       <!-- Selection Checkbox (For files only) -->
@@ -18,7 +18,7 @@
         @click.stop="gallery.toggleSelect(item.id)"
         class="absolute top-2.5 left-2.5 z-20 w-7 h-7 rounded-md border-2 border-zinc-900 flex items-center justify-center transition-all"
         :class="isSelected ? 'bg-amber-400 text-zinc-900 shadow-neo-sm scale-105' : 'bg-white/90 hover:bg-white text-transparent'"
-        title="Pilih foto untuk didownload"
+        title="Tandai berkas untuk pengunduhan massal"
       >
         <span class="font-extrabold text-sm leading-none" :class="{ 'text-zinc-900': isSelected }">✓</span>
       </button>
@@ -30,7 +30,7 @@
           item.isFolder ? 'bg-amber-300' : (item.type === 'video' ? 'bg-cyan-300' : 'bg-white')
         ]"
       >
-        {{ item.isFolder ? '📁 Folder' : (item.type === 'video' ? '🎬 Video' : '📷 Foto') }}
+        {{ item.isFolder ? '📁 Direktori' : (item.type === 'video' ? '🎬 Video' : '📷 Foto') }}
       </span>
 
       <!-- 1. Folder Display -->
@@ -41,10 +41,10 @@
         <div class="w-14 h-14 rounded-neo bg-amber-300 border-2 border-zinc-900 shadow-neo-sm flex items-center justify-center text-3xl">
           📂
         </div>
-        <span class="text-xs font-bold text-zinc-800">Klik untuk Buka Folder</span>
+        <span class="text-xs font-bold text-zinc-800">Buka Subdirektori</span>
       </div>
 
-      <!-- 2. Media Thumbnail (Photo / Video): Mengikuti Rasio Asli Foto/Video -->
+      <!-- 2. Media Thumbnail -->
       <template v-else>
         <!-- GSAP Shimmer / Skeleton Loader while image loading -->
         <div
@@ -70,7 +70,7 @@
         <!-- Fallback if all image endpoints fail -->
         <div v-if="hasError && !hasLoaded" class="py-12 flex flex-col items-center justify-center gap-1 bg-zinc-100 text-zinc-400 w-full">
           <span class="text-3xl">🖼️</span>
-          <span class="text-[11px] font-medium">Klik untuk Preview HD</span>
+          <span class="text-[11px] font-medium">Buka Pratinjau HD</span>
         </div>
 
         <!-- Quick Action Overlay on Hover -->
@@ -79,7 +79,7 @@
             @click.stop="gallery.openPreview(item)"
             class="px-3 py-1.5 bg-white border-2 border-zinc-900 rounded font-bold text-xs shadow-neo-sm hover:bg-amber-300 transition-colors"
           >
-            🔍 Preview
+            🔍 Pratinjau
           </button>
           <a
             :href="item.downloadUrl"
@@ -88,7 +88,7 @@
             @click.stop
             class="px-3 py-1.5 bg-cyan-300 border-2 border-zinc-900 rounded font-bold text-xs shadow-neo-sm hover:bg-cyan-400 transition-colors"
           >
-            ⬇️ Download
+            ⬇️ Unduh
           </a>
         </div>
       </template>
@@ -105,7 +105,7 @@
           Ukuran: {{ item.size }}
         </p>
         <p v-else-if="item.isFolder" class="text-[10px] font-bold text-amber-700">
-          Subfolder Google Drive
+          Subdirektori Google Drive
         </p>
       </div>
 
@@ -116,7 +116,7 @@
             @click.stop="gallery.enterSubfolder(item)"
             class="text-[11px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 py-0.5"
           >
-            <span>👉</span> Masuk Folder
+            <span>👉</span> Masuk Direktori
           </button>
           <a
             :href="item.rawUrl"
@@ -125,21 +125,21 @@
             @click.stop
             class="text-[11px] font-semibold text-zinc-500 hover:text-zinc-800"
           >
-            Buka di Drive ↗
+            Akses Google Drive ↗
           </a>
         </template>
         <template v-else>
           <button
             @click.stop="handleAddToCompare"
             class="text-[11px] font-semibold text-zinc-600 hover:text-zinc-900 flex items-center gap-1 py-0.5"
-            title="Bandingkan di Split Screen"
+            title="Sematkan pada panel komparasi berdampingan"
           >
-            <span>⊟</span> Bandingkan
+            <span>⊟</span> Komparasi
           </button>
           <button
             @click.stop="gallery.removeItem(item.id)"
             class="text-[11px] font-semibold text-rose-500 hover:text-rose-700 py-0.5"
-            title="Hapus dari daftar"
+            title="Hapus dari daftar sesi"
           >
             Hapus
           </button>
@@ -200,7 +200,6 @@ function onImageLoaded() {
 }
 
 onMounted(() => {
-  // GSAP subtle pop-in animation for each card
   if (cardRef.value) {
     gsap.from(cardRef.value, {
       scale: 0.96,
@@ -209,7 +208,6 @@ onMounted(() => {
       ease: 'back.out(1.4)'
     })
   }
-  // GSAP Shimmer animation on skeleton loader
   if (skeletonRef.value) {
     gsap.to(skeletonRef.value, {
       backgroundPosition: '200% 0',

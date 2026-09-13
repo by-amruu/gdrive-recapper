@@ -8,9 +8,9 @@
       <div class="w-16 h-16 mx-auto rounded-full bg-amber-200 border-2 border-zinc-900 flex items-center justify-center text-3xl shadow-neo-sm">
         📂
       </div>
-      <h3 class="font-extrabold text-base text-zinc-900">Galeri Masih Kosong</h3>
+      <h3 class="font-extrabold text-base text-zinc-900">Belum Ada Direktori yang Dimuat</h3>
       <p class="text-xs text-zinc-500 max-w-sm mx-auto">
-        Masukkan link Google Drive folder dokumentasi atau foto di formulir di atas untuk mulai melihat preview dan download.
+        Silakan tempelkan tautan folder atau berkas Google Drive pada formulir di atas untuk memulai kurasi dan pengunduhan dokumentasi.
       </p>
     </div>
 
@@ -19,12 +19,12 @@
       v-else-if="gallery.filteredItems.length === 0"
       class="neo-card p-8 text-center bg-white space-y-2"
     >
-      <p class="text-sm font-bold text-zinc-700">Tidak ada media untuk kategori ini</p>
+      <p class="text-sm font-bold text-zinc-700">Tidak ada berkas yang sesuai dengan kriteria filter</p>
       <button
         @click="gallery.filter = 'all'"
         class="text-xs font-bold text-amber-600 underline"
       >
-        Tampilkan semua media
+        Tampilkan seluruh berkas
       </button>
     </div>
 
@@ -48,7 +48,7 @@
       >
         <div class="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-zinc-900 rounded-neo shadow-neo-sm text-xs font-bold text-zinc-700">
           <span class="animate-spin text-sm">⏳</span>
-          <span>Memuat lebih banyak foto ({{ gallery.visibleItems.length }} dari {{ gallery.filteredItems.length }})...</span>
+          <span>Menampilkan berkas selanjutnya ({{ gallery.visibleItems.length }} dari {{ gallery.filteredItems.length }})...</span>
         </div>
       </div>
 
@@ -57,7 +57,7 @@
         v-else-if="gallery.filteredItems.length > 36"
         class="py-6 text-center text-xs font-bold text-zinc-400"
       >
-        ✓ Semua {{ gallery.filteredItems.length }} media telah ditampilkan
+        ✓ Seluruh {{ gallery.filteredItems.length }} berkas telah dimuat sempurna
       </div>
     </template>
   </div>
@@ -81,7 +81,7 @@ function setupObserver() {
       gallery.loadMore()
     }
   }, {
-    rootMargin: '400px 0px', // Pre-load 400px before user reaches the bottom
+    rootMargin: '400px 0px',
     threshold: 0.1
   })
 
@@ -98,7 +98,6 @@ watch(infiniteSentinelRef, (newEl) => {
   if (newEl) setupObserver()
 })
 
-// Reset visible count when filter or sort changes
 watch(() => [gallery.filter, gallery.sortOrder], () => {
   gallery.resetVisibleCount()
 })

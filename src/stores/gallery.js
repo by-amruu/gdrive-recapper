@@ -302,8 +302,8 @@ export const useGalleryStore = defineStore('gallery', () => {
   async function enterSubfolder(folderItem) {
     if (!apiKey.value) {
       showModal({
-        title: 'API Key Diperlukan',
-        message: 'Masukkan Google Drive API Key terlebih dahulu untuk menjelajahi subfolder.',
+        title: 'Kunci API Diperlukan',
+        message: 'Silakan masukkan Google Drive API Key pada menu pengaturan untuk menjelajahi subdirektori.',
         icon: '🔑',
         confirmText: 'Buka Pengaturan',
         onConfirm: () => {
@@ -319,7 +319,7 @@ export const useGalleryStore = defineStore('gallery', () => {
       if (currentTab.value) {
         currentTab.value.folderStack.push({
           id: folderItem.id,
-          name: folderItem.name || folderName || 'Subfolder'
+          name: folderItem.name || folderName || 'Subdirektori'
         })
         currentTab.value.items = folderItems
         currentTab.value.selectedIds = []
@@ -328,8 +328,8 @@ export const useGalleryStore = defineStore('gallery', () => {
       saveTabsToStorage()
     } catch (e) {
       showModal({
-        title: 'Gagal Membuka Subfolder',
-        message: e.message || 'Terjadi kesalahan saat membuka subfolder.',
+        title: 'Gagal Membuka Subdirektori',
+        message: e.message || 'Terjadi kendala saat memuat isi subdirektori.',
         icon: '❌'
       })
     } finally {
@@ -352,8 +352,8 @@ export const useGalleryStore = defineStore('gallery', () => {
       saveTabsToStorage()
     } catch (e) {
       showModal({
-        title: 'Gagal Navigasi Folder',
-        message: e.message || 'Tidak dapat memuat folder sebelumnya.',
+        title: 'Gagal Navigasi Direktori',
+        message: e.message || 'Tidak dapat memuat direktori sebelumnya.',
         icon: '❌'
       })
     } finally {

@@ -2,21 +2,21 @@
   <header class="bg-white border-b-2 border-zinc-900 sticky top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
       
-      <!-- Brand Logo -->
+      <!-- Brand Logo & Identity -->
       <div class="flex items-center gap-3 select-none">
         <div class="w-10 h-10 rounded-neo bg-amber-300 border-2 border-zinc-900 shadow-neo-sm flex items-center justify-center font-bold text-lg">
           📸
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <span class="font-extrabold text-base tracking-tight text-zinc-900">GDrive Recapper</span>
-            <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 bg-cyan-200 border border-zinc-900 rounded font-bold">v2.1</span>
+            <span class="font-extrabold text-base tracking-tight text-zinc-900">GDrive Media Recapper</span>
+            <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 bg-cyan-200 border border-zinc-900 rounded font-bold">PRO</span>
           </div>
-          <p class="text-xs text-zinc-500 font-medium">Dokumentasi Acara Kampus</p>
+          <p class="text-xs text-zinc-500 font-medium">Platform Kurasi & Dokumentasi Visual</p>
         </div>
       </div>
 
-      <!-- Center: Mode Switcher -->
+      <!-- Center: View Mode Switcher -->
       <div class="hidden sm:flex items-center gap-1 bg-zinc-100 p-1 border-2 border-zinc-900 rounded-neo shadow-neo-sm">
         <button
           @click="gallery.viewMode = 'grid'"
@@ -27,7 +27,7 @@
               : 'text-zinc-600 hover:text-zinc-900'
           ]"
         >
-          <span>🗂️</span> Galeri
+          <span>🗂️</span> Tampilan Galeri
         </button>
         <button
           @click="gallery.viewMode = 'splitscreen'"
@@ -38,7 +38,7 @@
               : 'text-zinc-600 hover:text-zinc-900'
           ]"
         >
-          <span>⊟</span> Split Screen
+          <span>⊟</span> Komparasi Media
         </button>
       </div>
 
@@ -48,21 +48,21 @@
         <button
           @click="confirmClearCache"
           class="btn-neo bg-zinc-100 hover:bg-rose-100 text-zinc-700 hover:text-rose-700 text-xs px-3 py-1.5"
-          title="Hapus seluruh cache local & reload mutlak"
+          title="Bersihkan seluruh cache aplikasi dan muat ulang"
         >
           <span>⚡</span>
-          <span class="hidden sm:inline">Hapus Cache Mutlak</span>
+          <span class="hidden sm:inline">Bersihkan Cache</span>
         </button>
 
-        <!-- Reset Galeri -->
+        <!-- Reset Sesi -->
         <button
           v-if="gallery.totalCount > 0"
           @click="confirmResetGallery"
           class="btn-neo bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs px-3 py-1.5"
-          title="Kosongkan galeri saat ini"
+          title="Kosongkan seluruh tab media saat ini"
         >
           <span>🗑️</span>
-          <span class="hidden md:inline">Reset Galeri</span>
+          <span class="hidden md:inline">Kosongkan Sesi</span>
         </button>
       </div>
 
@@ -77,10 +77,10 @@ const gallery = useGalleryStore()
 
 function confirmClearCache() {
   gallery.showModal({
-    title: 'Hapus Cache Mutlak?',
-    message: 'Tindakan ini akan membersihkan seluruh localStorage, cache data, dan me-reload aplikasi secara bersih dari awal.',
+    title: 'Konfirmasi Bersihkan Cache',
+    message: 'Tindakan ini akan menghapus seluruh data sesi lokal dan me-reload aplikasi dalam keadaan bersih optimal.',
     icon: '🧹',
-    confirmText: 'Bersihkan & Reload',
+    confirmText: 'Bersihkan Sekarang',
     isDanger: true,
     showCancel: true,
     onConfirm: () => {
@@ -91,8 +91,8 @@ function confirmClearCache() {
 
 function confirmResetGallery() {
   gallery.showModal({
-    title: 'Kosongkan Galeri?',
-    message: 'Semua item foto dan video yang saat ini dimuat akan dibersihkan dari tampilan.',
+    title: 'Konfirmasi Kosongkan Sesi',
+    message: 'Seluruh tab folder dan berkas media yang sedang dimuat akan dibersihkan dari tampilan saat ini.',
     icon: '🗑️',
     confirmText: 'Ya, Kosongkan',
     isDanger: true,
