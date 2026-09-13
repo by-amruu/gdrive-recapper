@@ -1,28 +1,53 @@
 <template>
   <div class="neo-card p-5 space-y-4">
     
-    <!-- Title -->
-    <div class="flex items-center justify-between border-b-2 border-zinc-900 pb-3">
+    <!-- Title & Mode Toggle -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-zinc-900 pb-3">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-md bg-cyan-300 border-2 border-zinc-900 shadow-neo-sm flex items-center justify-center font-bold text-sm">
           +
         </div>
         <div>
           <h2 class="font-extrabold text-sm text-zinc-900">Input Folder atau File Google Drive</h2>
-          <p class="text-[11px] text-zinc-500 font-medium">Tempel link publik Google Drive untuk menampilkan foto & video</p>
+          <p class="text-[11px] text-zinc-500 font-medium">Bisa tempel 1 atau banyak link folder sekaligus</p>
         </div>
+      </div>
+
+      <!-- Multi-folder Append / Replace Mode Switcher -->
+      <div v-if="gallery.totalCount > 0" class="flex items-center gap-1.5 bg-zinc-100 p-1 border border-zinc-900 rounded-md">
+        <span class="text-[10px] font-bold text-zinc-500 pl-1">Jika ada folder baru:</span>
+        <button
+          @click="importMode = 'append'"
+          :class="[
+            'px-2 py-0.5 text-[10px] font-extrabold rounded transition-all',
+            importMode === 'append' ? 'bg-amber-300 text-zinc-900 border border-zinc-900 shadow-neo-sm' : 'text-zinc-600 hover:text-zinc-900'
+          ]"
+          title="Gabungkan foto dari folder baru dengan foto yang sudah ada"
+        >
+          ➕ Gabung
+        </button>
+        <button
+          @click="importMode = 'replace'"
+          :class="[
+            'px-2 py-0.5 text-[10px] font-extrabold rounded transition-all',
+            importMode === 'replace' ? 'bg-rose-300 text-zinc-900 border border-zinc-900 shadow-neo-sm' : 'text-zinc-600 hover:text-zinc-900'
+          ]"
+          title="Ganti isi galeri sepenuhnya dengan folder baru"
+        >
+          🔄 Ganti
+        </button>
       </div>
     </div>
 
-    <!-- Main Input Form with Clean Placeholder -->
+    <!-- Main Input Form with Multi-line Support -->
     <div class="space-y-3">
       <div class="relative">
         <textarea
           v-model="inputUrl"
           @keydown.enter.ctrl="handleSubmit"
           rows="2"
-          placeholder="Paste link Google Drive di sini (Folder atau File)..."
-          class="neo-input resize-none text-xs leading-relaxed font-mono py-3"
+          placeholder="Paste link Google Drive di sini (bisa multi-link folder/file, satu link per baris)..."
+          class="neo-input resize-none text-xs leading-relaxed font-mono py-2.5"
         />
         
         <div class="absolute bottom-2.5 right-2 flex items-center gap-2">
@@ -60,7 +85,7 @@
         >
           <span v-if="isLoading" class="animate-spin text-sm">⏳</span>
           <span v-else class="text-sm">⚡</span>
-          <span>{{ isLoading ? 'Memproses Cepat...' : 'Muat ke Galeri' }}</span>
+          <span>{{ isLoading ? loadingStatus : (importMode === 'append' && gallery.totalCount > 0 ? 'Gabungkan ke Galeri' : 'Muat ke Galeri') }}</span>
         </button>
 
       </div>
@@ -94,8 +119,10 @@ import { extractFileId, isFolderUrl, fetchFolderContents } from '@/utils/gdrive'
 const gallery = useGalleryStore()
 const inputUrl = ref('')
 const isLoading = ref(false)
+const loadingStatus = ref('Memproses Cepat...')
 const feedbackMsg = ref('')
 const feedbackType = ref('success')
+const importMode = ref('append') // 'append' | 'replace'
 
 const sampleFolder = 'https://drive.google.com/drive/folders/1442u65M5KQasSlrQV2dMgAaZto0veLO0'
 const sampleFile = 'https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms/view'
@@ -105,68 +132,81 @@ async function handleSubmit() {
   const text = inputUrl.value.trim()
   if (!text) return
 
-  const id = extractFileId(text)
-  if (!id) {
-    feedbackType.value = 'error'
-    feedbackMsg.value = 'URL Google Drive tidak valid. Pastikan format URL benar.'
-    return
-  }
-
-  const isFolder = isFolderUrl(text)
-
-  // 1. If it's a folder link
-  if (isFolder) {
-    if (!gallery.apiKey) {
-      gallery.showModal({
-        title: 'API Key Diperlukan',
-        message: 'Google Drive API Key belum disetel. Hubungi administrator repository atau setel VITE_GDRIVE_API_KEY.',
-        icon: '🔑',
-        confirmText: 'Buka Input Manual',
-        onConfirm: () => {
-          gallery.isSettingsOpen = true
-        }
-      })
-      return
-    }
-
-    isLoading.value = true
-    try {
-      const { folderName, items } = await fetchFolderContents(id, gallery.apiKey)
-      if (items.length === 0) {
-        feedbackType.value = 'error'
-        feedbackMsg.value = 'Folder ditemukan, tetapi tidak ada file foto/video di dalamnya atau akses folder belum publik.'
-      } else {
-        gallery.items = items
-        gallery.folderStack = [{ id, name: folderName || 'Folder Utama' }]
-        gallery.selectedIds = []
-
-        feedbackType.value = 'success'
-        feedbackMsg.value = `Berhasil memuat ${items.length} item dari "${folderName}"!`
-        inputUrl.value = ''
-      }
-    } catch (err) {
-      feedbackType.value = 'error'
-      feedbackMsg.value = err.message || 'Gagal memuat isi folder. Pastikan folder diset "Anyone with link can view".'
-    } finally {
-      isLoading.value = false
-    }
-    return
-  }
-
-  // 2. If it's single or multiple direct file URLs
+  // Parse multi-lines
   const lines = text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean)
+  if (lines.length === 0) return
+
+  isLoading.value = true
+  loadingStatus.value = 'Mempersiapkan link...'
+
   let totalAdded = 0
-  for (const line of lines) {
-    totalAdded += gallery.addSingleUrl(line)
+  let folderNames = []
+  let errors = []
+
+  // Check if any folder requires API Key
+  const hasFolder = lines.some(l => isFolderUrl(l))
+  if (hasFolder && !gallery.apiKey) {
+    isLoading.value = false
+    gallery.showModal({
+      title: 'API Key Diperlukan',
+      message: 'Google Drive API Key belum disetel. Hubungi administrator repository atau setel VITE_GDRIVE_API_KEY.',
+      icon: '🔑',
+      confirmText: 'Buka Input Manual',
+      onConfirm: () => {
+        gallery.isSettingsOpen = true
+      }
+    })
+    return
   }
+
+  // If mode is 'replace' and user is loading a fresh batch, clear current gallery first
+  if (importMode.value === 'replace') {
+    gallery.clearAll()
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const id = extractFileId(line)
+    if (!id) {
+      errors.push(`URL tidak valid: ${line.slice(0, 30)}...`)
+      continue
+    }
+
+    if (isFolderUrl(line)) {
+      loadingStatus.value = `Mengambil isi folder (${i + 1}/${lines.length})...`
+      try {
+        const { folderName, items } = await fetchFolderContents(id, gallery.apiKey)
+        if (items.length > 0) {
+          const added = gallery.addItems(items, 'append')
+          totalAdded += added
+          folderNames.push(folderName)
+          if (gallery.folderStack.length === 0) {
+            gallery.folderStack = [{ id, name: folderName }]
+          }
+        }
+      } catch (err) {
+        errors.push(err.message || `Gagal memuat folder ${id}`)
+      }
+    } else {
+      // Single file
+      const added = gallery.addSingleUrl(line)
+      totalAdded += added
+    }
+  }
+
+  isLoading.value = false
 
   if (totalAdded > 0) {
     feedbackType.value = 'success'
-    feedbackMsg.value = `Berhasil menambahkan ${totalAdded} file ke galeri!`
+    const folderDesc = folderNames.length > 0 ? ` dari ${folderNames.length} folder (${folderNames.join(', ')})` : ''
+    feedbackMsg.value = `Berhasil memuat & menggabungkan ${totalAdded} item baru${folderDesc}! Total galeri: ${gallery.totalCount} media.`
     inputUrl.value = ''
+  } else if (errors.length > 0) {
+    feedbackType.value = 'error'
+    feedbackMsg.value = errors.join('; ')
   } else {
     feedbackType.value = 'error'
-    feedbackMsg.value = 'File sudah ada di galeri atau format link tidak sesuai.'
+    feedbackMsg.value = 'Semua file dari link tersebut sudah ada di galeri (duplikat).'
   }
 }
 </script>

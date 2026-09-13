@@ -5,9 +5,6 @@ import { extractFileId, isFolderUrl, toDownloadUrl, toThumbnailUrl, toHighResPre
 const STORAGE_KEY = 'gdrive-gallery-v3'
 const API_KEY_STORAGE = 'gdrive-api-key'
 
-// Prioritas API Key:
-// 1. Dari Environment Variable Vite (.env / GitHub Actions Secrets) -> VITE_GDRIVE_API_KEY
-// 2. Dari LocalStorage pengguna jika ada
 const envApiKey = import.meta.env.VITE_GDRIVE_API_KEY || ''
 
 export const useGalleryStore = defineStore('gallery', () => {
@@ -17,6 +14,10 @@ export const useGalleryStore = defineStore('gallery', () => {
   const activeItem = ref(null)
   const compareA = ref(null)
   const compareB = ref(null)
+
+  // Infinite scroll: Jumlah item yang dirender saat ini
+  const visibleCount = ref(36)
+  const PAGE_CHUNK = 24
 
   // Folder Breadcrumbs & Navigation Stack
   const folderStack = ref([])
@@ -69,6 +70,15 @@ export const useGalleryStore = defineStore('gallery', () => {
     return list
   })
 
+  // Item yang sedang aktif dirender di layar (Infinite Scroll)
+  const visibleItems = computed(() => {
+    return filteredItems.value.slice(0, visibleCount.value)
+  })
+
+  const hasMoreItems = computed(() => {
+    return visibleCount.value < filteredItems.value.length
+  })
+
   const folderCount = computed(() => items.value.filter(i => i.isFolder || i.type === 'folder').length)
   const photoCount = computed(() => items.value.filter(i => i.type === 'photo').length)
   const videoCount = computed(() => items.value.filter(i => i.type === 'video').length)
@@ -109,23 +119,48 @@ export const useGalleryStore = defineStore('gallery', () => {
     dialog.value.isOpen = false
   }
 
+  // ─── Infinite Scroll Action ───────────────────────────────
+  function loadMore() {
+    if (hasMoreItems.value) {
+      visibleCount.value = Math.min(visibleCount.value + PAGE_CHUNK, filteredItems.value.length)
+    }
+  }
+
+  function resetVisibleCount() {
+    visibleCount.value = 36
+  }
+
   // ─── Actions ──────────────────────────────────────────────
   function setApiKey(key) {
     apiKey.value = key.trim()
     localStorage.setItem(API_KEY_STORAGE, apiKey.value)
   }
 
-  function addItems(newItems) {
+  /**
+   * Menambahkan kumpulan item baru ke galeri
+   * @param {Array} newItems
+   * @param {'append'|'replace'} mode
+   */
+  function addItems(newItems, mode = 'append') {
     let addedCount = 0
-    for (const item of newItems) {
-      if (!items.value.some(existing => existing.id === item.id)) {
-        items.value.push({
-          ...item,
-          addedAt: Date.now() + addedCount
-        })
-        addedCount++
+
+    if (mode === 'replace') {
+      items.value = newItems
+      addedCount = newItems.length
+    } else {
+      // Append mode: gabungkan dan hindari duplikasi file ID
+      for (const item of newItems) {
+        if (!items.value.some(existing => existing.id === item.id)) {
+          items.value.push({
+            ...item,
+            addedAt: Date.now() + addedCount
+          })
+          addedCount++
+        }
       }
     }
+
+    resetVisibleCount()
     saveToStorage()
     return addedCount
   }
@@ -175,10 +210,11 @@ export const useGalleryStore = defineStore('gallery', () => {
     activeItem.value = null
     compareA.value = null
     compareB.value = null
+    resetVisibleCount()
     saveToStorage()
   }
 
-  /** Hapus Cache Mutlak (Clear total storage & reload) */
+  /** Hapus Cache Mutlak */
   function clearAbsoluteCache() {
     localStorage.clear()
     sessionStorage.clear()
@@ -220,6 +256,7 @@ export const useGalleryStore = defineStore('gallery', () => {
       })
       items.value = folderItems
       selectedIds.value = []
+      resetVisibleCount()
       saveToStorage()
     } catch (e) {
       showModal({
@@ -241,6 +278,7 @@ export const useGalleryStore = defineStore('gallery', () => {
       folderStack.value = folderStack.value.slice(0, index + 1)
       items.value = folderItems
       selectedIds.value = []
+      resetVisibleCount()
       saveToStorage()
     } catch (e) {
       showModal({
@@ -329,10 +367,11 @@ export const useGalleryStore = defineStore('gallery', () => {
 
   return {
     items, apiKey, activeItem, compareA, compareB, selectedIds, filter, viewMode, sortOrder, isSettingsOpen, dialog,
+    visibleCount, visibleItems, hasMoreItems,
     folderStack, isNavigatingFolder, currentFolderName,
     filteredItems, folderCount, photoCount, videoCount, totalCount, selectedCount, isAllSelected, selectedItems, activeIndex,
     setApiKey, addItems, addSingleUrl, removeItem, clearAll, clearAbsoluteCache, enterSubfolder, goToBreadcrumb,
-    showModal, closeModal,
+    showModal, closeModal, loadMore, resetVisibleCount,
     toggleSelect, selectAll, deselectAll,
     openPreview, closePreview, prevItem, nextItem,
     setCompareA, setCompareB, swapCompare, clearCompare,
