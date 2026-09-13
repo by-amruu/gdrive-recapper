@@ -2,14 +2,17 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { extractFileId, isFolderUrl, toDownloadUrl, toThumbnailUrl, toHighResPreviewUrl, detectType, fetchFolderContents } from '@/utils/gdrive'
 
-const STORAGE_KEY = 'gdrive-gallery-v3'
+const TABS_STORAGE_KEY = 'gdrive-folder-tabs-v1'
 const API_KEY_STORAGE = 'gdrive-api-key'
 
 const envApiKey = import.meta.env.VITE_GDRIVE_API_KEY || ''
 
 export const useGalleryStore = defineStore('gallery', () => {
   // ─── State ────────────────────────────────────────────────
-  const items = ref(loadFromStorage())
+  // List of Folder Tabs: [{ id, name, items: [], selectedIds: [], folderStack: [] }]
+  const tabs = ref(loadTabsFromStorage())
+  const activeTabId = ref(tabs.value.length > 0 ? tabs.value[0].id : null)
+
   const apiKey = ref(envApiKey || localStorage.getItem(API_KEY_STORAGE) || '')
   const activeItem = ref(null)
   const compareA = ref(null)
@@ -19,12 +22,7 @@ export const useGalleryStore = defineStore('gallery', () => {
   const visibleCount = ref(36)
   const PAGE_CHUNK = 24
 
-  // Folder Breadcrumbs & Navigation Stack
-  const folderStack = ref([])
   const isNavigatingFolder = ref(false)
-
-  // Selection state (Array of file IDs)
-  const selectedIds = ref([])
 
   // UI state
   const filter = ref('all') // 'all' | 'folder' | 'photo' | 'video'
@@ -32,7 +30,7 @@ export const useGalleryStore = defineStore('gallery', () => {
   const sortOrder = ref('newest') // 'newest' | 'oldest' | 'name'
   const isSettingsOpen = ref(false)
 
-  // Modal Dialog State (replacing native alert/confirm)
+  // Modal Dialog State
   const dialog = ref({
     isOpen: false,
     title: '',
@@ -46,12 +44,45 @@ export const useGalleryStore = defineStore('gallery', () => {
     onCancel: null,
   })
 
-  // ─── Computed ─────────────────────────────────────────────
+  // ─── Active Tab Getters & Setters ─────────────────────────
+  const currentTab = computed(() => {
+    return tabs.value.find(t => t.id === activeTabId.value) || null
+  })
+
+  const items = computed(() => {
+    return currentTab.value ? currentTab.value.items : []
+  })
+
+  const selectedIds = computed({
+    get() {
+      return currentTab.value ? currentTab.value.selectedIds : []
+    },
+    set(newVal) {
+      if (currentTab.value) {
+        currentTab.value.selectedIds = newVal
+        saveTabsToStorage()
+      }
+    }
+  })
+
+  const folderStack = computed({
+    get() {
+      return currentTab.value ? currentTab.value.folderStack : []
+    },
+    set(newVal) {
+      if (currentTab.value) {
+        currentTab.value.folderStack = newVal
+        saveTabsToStorage()
+      }
+    }
+  })
+
   const currentFolderName = computed(() => {
-    if (folderStack.value.length === 0) return ''
+    if (folderStack.value.length === 0) return currentTab.value?.name || ''
     return folderStack.value[folderStack.value.length - 1].name
   })
 
+  // ─── Computed Filters & Sorting ───────────────────────────
   const filteredItems = computed(() => {
     let list = [...items.value]
 
@@ -70,7 +101,6 @@ export const useGalleryStore = defineStore('gallery', () => {
     return list
   })
 
-  // Item yang sedang aktif dirender di layar (Infinite Scroll)
   const visibleItems = computed(() => {
     return filteredItems.value.slice(0, visibleCount.value)
   })
@@ -119,6 +149,54 @@ export const useGalleryStore = defineStore('gallery', () => {
     dialog.value.isOpen = false
   }
 
+  // ─── Tab Management ───────────────────────────────────────
+  function createTab(folderId, folderName, initialItems = []) {
+    // Check if tab already exists
+    const existing = tabs.value.find(t => t.id === folderId)
+    if (existing) {
+      activeTabId.value = existing.id
+      existing.items = initialItems
+      resetVisibleCount()
+      saveTabsToStorage()
+      return existing
+    }
+
+    const newTab = {
+      id: folderId,
+      name: folderName || `Tab ${tabs.value.length + 1}`,
+      items: initialItems,
+      selectedIds: [],
+      folderStack: [{ id: folderId, name: folderName }]
+    }
+
+    tabs.value.push(newTab)
+    activeTabId.value = newTab.id
+    resetVisibleCount()
+    saveTabsToStorage()
+    return newTab
+  }
+
+  function switchTab(tabId) {
+    activeTabId.value = tabId
+    resetVisibleCount()
+  }
+
+  function closeTab(tabId) {
+    const idx = tabs.value.findIndex(t => t.id === tabId)
+    if (idx === -1) return
+
+    tabs.value.splice(idx, 1)
+    if (activeTabId.value === tabId) {
+      if (tabs.value.length > 0) {
+        activeTabId.value = tabs.value[Math.max(0, idx - 1)].id
+      } else {
+        activeTabId.value = null
+      }
+    }
+    resetVisibleCount()
+    saveTabsToStorage()
+  }
+
   // ─── Infinite Scroll Action ───────────────────────────────
   function loadMore() {
     if (hasMoreItems.value) {
@@ -136,39 +214,16 @@ export const useGalleryStore = defineStore('gallery', () => {
     localStorage.setItem(API_KEY_STORAGE, apiKey.value)
   }
 
-  /**
-   * Menambahkan kumpulan item baru ke galeri
-   * @param {Array} newItems
-   * @param {'append'|'replace'} mode
-   */
-  function addItems(newItems, mode = 'append') {
-    let addedCount = 0
-
-    if (mode === 'replace') {
-      items.value = newItems
-      addedCount = newItems.length
-    } else {
-      // Append mode: gabungkan dan hindari duplikasi file ID
-      for (const item of newItems) {
-        if (!items.value.some(existing => existing.id === item.id)) {
-          items.value.push({
-            ...item,
-            addedAt: Date.now() + addedCount
-          })
-          addedCount++
-        }
-      }
-    }
-
-    resetVisibleCount()
-    saveToStorage()
-    return addedCount
-  }
-
   function addSingleUrl(url, manualType = null) {
     const id = extractFileId(url)
     if (!id) return 0
-    if (items.value.some(i => i.id === id)) return 0
+
+    // If no tab exists, create default tab
+    if (!currentTab.value) {
+      createTab('default-session', 'Dokumentasi', [])
+    }
+
+    if (currentTab.value.items.some(i => i.id === id)) return 0
 
     const isFolder = isFolderUrl(url)
     const type = manualType || (isFolder ? 'folder' : detectType(url))
@@ -189,38 +244,49 @@ export const useGalleryStore = defineStore('gallery', () => {
       addedAt: Date.now()
     }
 
-    items.value.push(newItem)
-    saveToStorage()
+    currentTab.value.items.push(newItem)
+    saveTabsToStorage()
     return 1
   }
 
   function removeItem(id) {
-    items.value = items.value.filter(i => i.id !== id)
-    selectedIds.value = selectedIds.value.filter(sId => sId !== id)
+    if (!currentTab.value) return
+    currentTab.value.items = currentTab.value.items.filter(i => i.id !== id)
+    currentTab.value.selectedIds = currentTab.value.selectedIds.filter(sId => sId !== id)
     if (activeItem.value?.id === id) activeItem.value = null
     if (compareA.value?.id === id) compareA.value = null
     if (compareB.value?.id === id) compareB.value = null
-    saveToStorage()
+    saveTabsToStorage()
   }
 
-  function clearAll() {
-    items.value = []
-    selectedIds.value = []
-    folderStack.value = []
+  function clearCurrentTab() {
+    if (!currentTab.value) return
+    currentTab.value.items = []
+    currentTab.value.selectedIds = []
+    currentTab.value.folderStack = []
     activeItem.value = null
     compareA.value = null
     compareB.value = null
     resetVisibleCount()
-    saveToStorage()
+    saveTabsToStorage()
+  }
+
+  function clearAll() {
+    tabs.value = []
+    activeTabId.value = null
+    activeItem.value = null
+    compareA.value = null
+    compareB.value = null
+    resetVisibleCount()
+    saveTabsToStorage()
   }
 
   /** Hapus Cache Mutlak */
   function clearAbsoluteCache() {
     localStorage.clear()
     sessionStorage.clear()
-    items.value = []
-    selectedIds.value = []
-    folderStack.value = []
+    tabs.value = []
+    activeTabId.value = null
     activeItem.value = null
     compareA.value = null
     compareB.value = null
@@ -232,7 +298,7 @@ export const useGalleryStore = defineStore('gallery', () => {
     window.location.reload()
   }
 
-  // ─── Subfolder Navigation ─────────────────────────────────
+  // ─── Subfolder Navigation inside active tab ───────────────
   async function enterSubfolder(folderItem) {
     if (!apiKey.value) {
       showModal({
@@ -250,14 +316,16 @@ export const useGalleryStore = defineStore('gallery', () => {
     isNavigatingFolder.value = true
     try {
       const { folderName, items: folderItems } = await fetchFolderContents(folderItem.id, apiKey.value)
-      folderStack.value.push({
-        id: folderItem.id,
-        name: folderItem.name || folderName || 'Subfolder'
-      })
-      items.value = folderItems
-      selectedIds.value = []
+      if (currentTab.value) {
+        currentTab.value.folderStack.push({
+          id: folderItem.id,
+          name: folderItem.name || folderName || 'Subfolder'
+        })
+        currentTab.value.items = folderItems
+        currentTab.value.selectedIds = []
+      }
       resetVisibleCount()
-      saveToStorage()
+      saveTabsToStorage()
     } catch (e) {
       showModal({
         title: 'Gagal Membuka Subfolder',
@@ -275,11 +343,13 @@ export const useGalleryStore = defineStore('gallery', () => {
     isNavigatingFolder.value = true
     try {
       const { items: folderItems } = await fetchFolderContents(target.id, apiKey.value)
-      folderStack.value = folderStack.value.slice(0, index + 1)
-      items.value = folderItems
-      selectedIds.value = []
+      if (currentTab.value) {
+        currentTab.value.folderStack = currentTab.value.folderStack.slice(0, index + 1)
+        currentTab.value.items = folderItems
+        currentTab.value.selectedIds = []
+      }
       resetVisibleCount()
-      saveToStorage()
+      saveTabsToStorage()
     } catch (e) {
       showModal({
         title: 'Gagal Navigasi Folder',
@@ -293,20 +363,26 @@ export const useGalleryStore = defineStore('gallery', () => {
 
   // ─── Selection Actions ────────────────────────────────────
   function toggleSelect(id) {
-    if (selectedIds.value.includes(id)) {
-      selectedIds.value = selectedIds.value.filter(sId => sId !== id)
+    if (!currentTab.value) return
+    if (currentTab.value.selectedIds.includes(id)) {
+      currentTab.value.selectedIds = currentTab.value.selectedIds.filter(sId => sId !== id)
     } else {
-      selectedIds.value.push(id)
+      currentTab.value.selectedIds.push(id)
     }
+    saveTabsToStorage()
   }
 
   function selectAll() {
+    if (!currentTab.value) return
     const ids = filteredItems.value.filter(i => !i.isFolder).map(i => i.id)
-    selectedIds.value = Array.from(new Set([...selectedIds.value, ...ids]))
+    currentTab.value.selectedIds = Array.from(new Set([...currentTab.value.selectedIds, ...ids]))
+    saveTabsToStorage()
   }
 
   function deselectAll() {
-    selectedIds.value = []
+    if (!currentTab.value) return
+    currentTab.value.selectedIds = []
+    saveTabsToStorage()
   }
 
   // ─── Preview navigation ───────────────────────────────────
@@ -348,29 +424,45 @@ export const useGalleryStore = defineStore('gallery', () => {
   }
 
   // ─── Storage Helpers ──────────────────────────────────────
-  function saveToStorage() {
+  function saveTabsToStorage() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items.value))
+      localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify(tabs.value))
     } catch {
       // ignore
     }
   }
 
-  function loadFromStorage() {
+  function loadTabsFromStorage() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      return raw ? JSON.parse(raw) : []
+      const raw = localStorage.getItem(TABS_STORAGE_KEY)
+      if (raw) return JSON.parse(raw)
+      
+      // Migration from old single-item storage if present
+      const oldRaw = localStorage.getItem('gdrive-gallery-v3')
+      if (oldRaw) {
+        const oldItems = JSON.parse(oldRaw)
+        if (oldItems && oldItems.length > 0) {
+          return [{
+            id: 'tab-default',
+            name: 'Dokumentasi Acara',
+            items: oldItems,
+            selectedIds: [],
+            folderStack: [{ id: 'tab-default', name: 'Dokumentasi Acara' }]
+          }]
+        }
+      }
+      return []
     } catch {
       return []
     }
   }
 
   return {
-    items, apiKey, activeItem, compareA, compareB, selectedIds, filter, viewMode, sortOrder, isSettingsOpen, dialog,
+    tabs, activeTabId, currentTab, items, apiKey, activeItem, compareA, compareB, selectedIds, filter, viewMode, sortOrder, isSettingsOpen, dialog,
     visibleCount, visibleItems, hasMoreItems,
     folderStack, isNavigatingFolder, currentFolderName,
     filteredItems, folderCount, photoCount, videoCount, totalCount, selectedCount, isAllSelected, selectedItems, activeIndex,
-    setApiKey, addItems, addSingleUrl, removeItem, clearAll, clearAbsoluteCache, enterSubfolder, goToBreadcrumb,
+    setApiKey, createTab, switchTab, closeTab, addSingleUrl, removeItem, clearCurrentTab, clearAll, clearAbsoluteCache, enterSubfolder, goToBreadcrumb,
     showModal, closeModal, loadMore, resetVisibleCount,
     toggleSelect, selectAll, deselectAll,
     openPreview, closePreview, prevItem, nextItem,

@@ -5,10 +5,13 @@
     <Navbar />
 
     <!-- Main Content Area -->
-    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 space-y-5">
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 space-y-4">
       
       <!-- Input Bar (Folder / File URL) -->
       <InputBar />
+
+      <!-- Window Tabs Bar: 1 Folder = 1 Tab -->
+      <FolderTabBar />
 
       <!-- View: Split Screen Mode -->
       <div v-if="gallery.viewMode === 'splitscreen'">
@@ -73,6 +76,7 @@
 <script setup>
 import Navbar from '@/components/Navbar.vue'
 import InputBar from '@/components/InputBar.vue'
+import FolderTabBar from '@/components/FolderTabBar.vue'
 import FilterBar from '@/components/FilterBar.vue'
 import GalleryGrid from '@/components/GalleryGrid.vue'
 import SplitScreen from '@/components/SplitScreen.vue'
