@@ -126,6 +126,18 @@
   }
 }
 
+@media (min-width: 1536px) {
+  .bento-masonry {
+    columns: 5;
+  }
+}
+
+@media (min-width: 1920px) {
+  .bento-masonry {
+    columns: 6;
+  }
+}
+
 .bento-item {
   break-inside: avoid;
   margin-bottom: 1rem;

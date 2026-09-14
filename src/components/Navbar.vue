@@ -1,6 +1,6 @@
 <template>
   <header class="bg-white border-b-2 border-zinc-900 sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <div class="max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
       
       <!-- Brand Logo & Identity -->
       <div class="flex items-center gap-3 select-none">

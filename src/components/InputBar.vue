@@ -33,36 +33,17 @@
       </div>
 
       <!-- Action Row -->
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-        
-        <!-- Examples -->
-        <div class="flex items-center gap-1.5 flex-wrap text-[11px]">
-          <span class="font-bold text-zinc-400">Contoh Tautan:</span>
-          <button
-            @click="inputUrl = sampleFolder"
-            class="px-2 py-0.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-900 rounded font-semibold text-zinc-800 transition-colors"
-          >
-            📁 Folder Dokumentasi
-          </button>
-          <button
-            @click="inputUrl = sampleFile"
-            class="px-2 py-0.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-900 rounded font-semibold text-zinc-800 transition-colors"
-          >
-            🖼️ Berkas Satuan
-          </button>
-        </div>
-
+      <div class="flex items-center justify-end pt-1">
         <!-- Submit Button -->
         <button
           @click="handleSubmit"
           :disabled="!inputUrl.trim() || isLoading"
-          class="btn-neo-primary px-6 py-2.5 text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="btn-neo-primary px-6 py-2.5 text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
         >
           <span v-if="isLoading" class="animate-spin text-sm">⏳</span>
           <span v-else class="text-sm">🗂️</span>
           <span>{{ isLoading ? loadingStatus : 'Buka di Tab Baru' }}</span>
         </button>
-
       </div>
     </div>
 
@@ -97,9 +78,6 @@ const isLoading = ref(false)
 const loadingStatus = ref('Memproses berkas...')
 const feedbackMsg = ref('')
 const feedbackType = ref('success')
-
-const sampleFolder = 'https://drive.google.com/drive/folders/1442u65M5KQasSlrQV2dMgAaZto0veLO0'
-const sampleFile = 'https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms/view'
 
 async function handleSubmit() {
   feedbackMsg.value = ''
