@@ -38,16 +38,14 @@
               </button>
 
               <!-- Download Button -->
-              <a
-                :href="item.downloadUrl"
-                target="_blank"
-                rel="noopener"
+              <button
+                @click="handleDirectDownload"
                 class="btn-neo-cyan text-xs px-3.5 py-1.5"
                 title="Unduh berkas resolusi asli"
               >
                 <span>⬇️</span>
                 <span class="hidden sm:inline">Unduh Berkas</span>
-              </a>
+              </button>
 
               <!-- Close Button -->
               <button
@@ -129,14 +127,15 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useGalleryStore } from '@/stores/gallery'
+import { triggerDirectDownload } from '@/utils/downloader'
 
 const gallery = useGalleryStore()
+const item = computed(() => gallery.activeItem)
+const isSelected = computed(() => item.value ? gallery.selectedIds.includes(item.value.id) : false)
+
 const imgLoading = ref(true)
 const useIframeFallback = ref(false)
 const previewStep = ref(0)
-
-const item = computed(() => gallery.activeItem)
-const isSelected = computed(() => item.value ? gallery.selectedIds.includes(item.value.id) : false)
 
 const previewSrc = computed(() => {
   if (!item.value) return ''
@@ -172,6 +171,22 @@ function handleKey(e) {
   if (e.key === ' ' || e.key === 'Enter') {
     if (gallery.activeItem) gallery.toggleSelect(gallery.activeItem.id)
   }
+}
+
+function handleDirectDownload() {
+  if (!item.value) return
+  const filename = item.value.name || `media_${item.value.id}`
+  gallery.showModal({
+    title: 'Konfirmasi Unduh Berkas',
+    message: `Unduh berkas "${filename}" langsung ke perangkat Anda?`,
+    icon: '📥',
+    confirmText: 'Unduh Sekarang',
+    cancelText: 'Batal',
+    showCancel: true,
+    onConfirm: () => {
+      triggerDirectDownload(item.value.id, filename)
+    }
+  })
 }
 
 onMounted(() => window.addEventListener('keydown', handleKey))

@@ -55,6 +55,7 @@
 import { ref } from 'vue'
 import { useGalleryStore } from '@/stores/gallery'
 import JSZip from 'jszip'
+import { fetchMediaBlob, triggerDirectDownload } from '@/utils/downloader'
 
 const gallery = useGalleryStore()
 const isZipping = ref(false)
@@ -66,50 +67,114 @@ async function handleDownloadZip() {
   zipProgress.value = 'Mempersiapkan...'
 
   const zip = new JSZip()
-  const total = gallery.selectedItems.length
-  let completed = 0
+  const items = gallery.selectedItems.filter(i => !i.isFolder)
+  const total = items.length
 
-  for (const item of gallery.selectedItems) {
-    try {
-      zipProgress.value = `Mengunduh (${completed + 1}/${total})...`
-      const downloadUrl = `https://drive.google.com/thumbnail?id=${item.id}&sz=w2500`
-      const res = await fetch(downloadUrl)
-      if (res.ok) {
-        const blob = await res.blob()
-        const filename = item.name || `media_${item.id}.jpg`
-        zip.file(filename, blob)
-      }
-    } catch (e) {
-      console.warn('Gagal unduh berkas untuk arsip zip:', item.id, e)
-    }
-    completed++
+  if (total === 0) {
+    gallery.showModal({
+      title: 'Pilihan Tidak Valid',
+      message: 'Tidak ada berkas media (foto/video) yang terpilih untuk diunduh.',
+      icon: '⚠️'
+    })
+    isZipping.value = false
+    return
   }
 
-  zipProgress.value = 'Mengompresi berkas ZIP...'
-  const content = await zip.generateAsync({ type: 'blob' })
-  
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(content)
-  a.download = `arsip_dokumentasi_${Date.now()}.zip`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  let successCount = 0
 
-  isZipping.value = false
-  zipProgress.value = ''
+  for (let idx = 0; idx < total; idx++) {
+    const item = items[idx]
+    zipProgress.value = `Mengunduh (${idx + 1}/${total})...`
+    
+    try {
+      const blob = await fetchMediaBlob(item, gallery.apiKey)
+      if (blob && blob.size > 0) {
+        let filename = item.name || `media_${item.id}.jpg`
+        // Pastikan ekstensi gambar ada
+        if (!filename.includes('.')) {
+          filename += item.type === 'video' ? '.mp4' : '.jpg'
+        }
+        zip.file(filename, blob)
+        successCount++
+      }
+    } catch (e) {
+      console.warn('Gagal memuat berkas untuk ZIP:', item.name || item.id, e)
+    }
+  }
+
+  if (successCount === 0) {
+    isZipping.value = false
+    zipProgress.value = ''
+    gallery.showModal({
+      title: 'Gagal Membuat Arsip ZIP',
+      message: 'Akses unduhan langsung dibatasi oleh Google Drive (CORS). Anda dapat menggunakan tombol "Unduh Parsial" untuk mengunduh berkas langsung ke perangkat.',
+      icon: '❌',
+      confirmText: 'Unduh Parsial Saja',
+      showCancel: true,
+      cancelText: 'Tutup',
+      onConfirm: () => {
+        executeDownloadIndividual()
+      }
+    })
+    return
+  }
+
+  zipProgress.value = `Mengompresi ${successCount} berkas...`
+  try {
+    const content = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    })
+    
+    const url = URL.createObjectURL(content)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `arsip_dokumentasi_${Date.now()}.zip`
+    document.body.appendChild(a)
+    a.click()
+    
+    setTimeout(() => {
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }, 1000)
+  } catch (err) {
+    console.error('Error saat kompresi ZIP:', err)
+    gallery.showModal({
+      title: 'Gagal Menyimpan ZIP',
+      message: 'Terjadi kendala saat menghasilkan arsip zip.',
+      icon: '❌'
+    })
+  } finally {
+    isZipping.value = false
+    zipProgress.value = ''
+  }
 }
 
 function handleDownloadIndividual() {
-  gallery.selectedItems.forEach((item, index) => {
+  const items = gallery.selectedItems.filter(i => !i.isFolder)
+  if (items.length === 0) return
+
+  // Berikan konfirmasi kepada pengguna, terutama penting di smartphone/HP
+  gallery.showModal({
+    title: 'Konfirmasi Unduh Berkas',
+    message: `Akan mengunduh ${items.length} berkas terpilih secara langsung ke perangkat Anda satu per satu. Lanjutkan pengunduhan?`,
+    icon: '📥',
+    confirmText: 'Mulai Unduh',
+    cancelText: 'Batal',
+    showCancel: true,
+    onConfirm: () => {
+      executeDownloadIndividual()
+    }
+  })
+}
+
+function executeDownloadIndividual() {
+  const items = gallery.selectedItems.filter(i => !i.isFolder)
+  items.forEach((item, index) => {
     setTimeout(() => {
-      const a = document.createElement('a')
-      a.href = item.downloadUrl
-      a.target = '_blank'
-      a.rel = 'noopener'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-    }, index * 400)
+      triggerDirectDownload(item.id, item.name)
+    }, index * 800)
   })
 }
 </script>

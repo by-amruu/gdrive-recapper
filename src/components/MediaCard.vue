@@ -81,15 +81,12 @@
           >
             🔍 Pratinjau
           </button>
-          <a
-            :href="item.downloadUrl"
-            target="_blank"
-            rel="noopener"
-            @click.stop
+          <button
+            @click.stop="handleDirectDownload"
             class="px-3 py-1.5 bg-cyan-300 border-2 border-zinc-900 rounded font-bold text-xs shadow-neo-sm hover:bg-cyan-400 transition-colors"
           >
             ⬇️ Unduh
-          </a>
+          </button>
         </div>
       </template>
 
@@ -153,6 +150,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useGalleryStore } from '@/stores/gallery'
+import { triggerDirectDownload } from '@/utils/downloader'
 import gsap from 'gsap'
 
 const props = defineProps({
@@ -235,5 +233,20 @@ function handleAddToCompare() {
     gallery.setCompareB(props.item)
   }
   gallery.viewMode = 'splitscreen'
+}
+
+function handleDirectDownload() {
+  const filename = props.item.name || `media_${props.item.id}`
+  gallery.showModal({
+    title: 'Konfirmasi Unduh Berkas',
+    message: `Unduh berkas "${filename}" langsung ke perangkat Anda?`,
+    icon: '📥',
+    confirmText: 'Unduh Sekarang',
+    cancelText: 'Batal',
+    showCancel: true,
+    onConfirm: () => {
+      triggerDirectDownload(props.item.id, filename)
+    }
+  })
 }
 </script>
