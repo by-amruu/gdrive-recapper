@@ -2,35 +2,44 @@
   <div
     ref="cardRef"
     :class="[
-      'neo-card-interactive flex flex-col overflow-hidden relative group select-none',
+      'neo-card-interactive flex flex-col overflow-hidden relative select-none',
       isSelected ? 'ring-4 ring-amber-400 bg-amber-50/40' : 'bg-white',
       item.isFolder ? 'cursor-pointer hover:border-amber-600' : 'cursor-pointer'
     ]"
     @click="handleCardClick"
+    @long-press="handleLongPress"
   >
     
     <!-- Top Image / Folder Container -->
     <div class="relative w-full bg-zinc-100 border-b-2 border-zinc-900 overflow-hidden flex items-center justify-center min-h-[140px]">
       
-      <!-- Selection Checkbox (For files only) -->
+      <!-- ─── SELECTION OVERLAY (visible when selected OR in selection mode) ─── -->
+      <!-- Large tap-friendly checkbox overlay — always visible on mobile -->
       <button
         v-if="!item.isFolder"
         @click.stop="gallery.toggleSelect(item.id)"
-        class="absolute top-2.5 left-2.5 z-20 w-7 h-7 rounded-md border-2 border-zinc-900 flex items-center justify-center transition-all"
-        :class="isSelected ? 'bg-amber-400 text-zinc-900 shadow-neo-sm scale-105' : 'bg-white/90 hover:bg-white text-transparent'"
-        title="Tandai berkas untuk pengunduhan massal"
+        :class="[
+          'absolute top-2 left-2 z-20 flex items-center justify-center transition-all rounded-lg border-2 border-zinc-900',
+          'w-8 h-8 sm:w-7 sm:h-7',  /* bigger on mobile */
+          isSelected
+            ? 'bg-amber-400 text-zinc-900 shadow-neo-sm scale-110'
+            : 'bg-white/90 hover:bg-white text-transparent',
+          /* Always show checkbox clearly on touch devices */
+          'touch-manipulation'
+        ]"
+        title="Tandai untuk unduh"
       >
-        <span class="font-extrabold text-sm leading-none" :class="{ 'text-zinc-900': isSelected }">✓</span>
+        <span class="font-extrabold text-base sm:text-sm leading-none" :class="{ 'text-zinc-900': isSelected }">✓</span>
       </button>
 
       <!-- Type Badge (Top Right) -->
       <span
         :class="[
-          'absolute top-2.5 right-2.5 z-10 px-2 py-0.5 text-[10px] font-extrabold uppercase border-2 border-zinc-900 rounded shadow-neo-sm',
+          'absolute top-2 right-2 z-10 px-2 py-0.5 text-[10px] font-extrabold uppercase border-2 border-zinc-900 rounded shadow-neo-sm',
           item.isFolder ? 'bg-amber-300' : (item.type === 'video' ? 'bg-cyan-300' : 'bg-white')
         ]"
       >
-        {{ item.isFolder ? '📁 Direktori' : (item.type === 'video' ? '🎬 Video' : '📷 Foto') }}
+        {{ item.isFolder ? '📁 Folder' : (item.type === 'video' ? '🎬 Video' : '📷 Foto') }}
       </span>
 
       <!-- 1. Folder Display -->
@@ -46,7 +55,7 @@
 
       <!-- 2. Media Thumbnail -->
       <template v-else>
-        <!-- GSAP Shimmer / Skeleton Loader while image loading -->
+        <!-- Shimmer Skeleton Loader -->
         <div
           v-if="!hasLoaded && !hasError"
           ref="skeletonRef"
@@ -70,11 +79,11 @@
         <!-- Fallback if all image endpoints fail -->
         <div v-if="hasError && !hasLoaded" class="py-12 flex flex-col items-center justify-center gap-1 bg-zinc-100 text-zinc-400 w-full">
           <span class="text-3xl">🖼️</span>
-          <span class="text-[11px] font-medium">Buka Pratinjau HD</span>
+          <span class="text-[11px] font-medium">Pratinjau Tidak Tersedia</span>
         </div>
 
-        <!-- Quick Action Overlay on Hover -->
-        <div class="absolute inset-0 bg-zinc-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+        <!-- Quick Action Overlay on Hover (Desktop Only) -->
+        <div class="hidden sm:flex absolute inset-0 bg-zinc-900/40 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-2">
           <button
             @click.stop="gallery.openPreview(item)"
             class="px-3 py-1.5 bg-white border-2 border-zinc-900 rounded font-bold text-xs shadow-neo-sm hover:bg-amber-300 transition-colors"
@@ -88,18 +97,43 @@
             ⬇️ Unduh
           </button>
         </div>
+
+        <!-- Mobile Quick Action Bar (always visible at bottom of image) -->
+        <div class="sm:hidden absolute bottom-0 inset-x-0 flex items-center justify-between px-2 py-1.5 bg-zinc-900/75 backdrop-blur-sm">
+          <button
+            @click.stop="gallery.openPreview(item)"
+            class="text-white text-xs font-bold px-2 py-1 rounded bg-white/20 hover:bg-white/40 transition-colors touch-manipulation"
+          >
+            🔍
+          </button>
+          <button
+            @click.stop="gallery.toggleSelect(item.id)"
+            :class="[
+              'text-xs font-extrabold px-3 py-1 rounded border border-zinc-900 transition-colors touch-manipulation',
+              isSelected ? 'bg-amber-400 text-zinc-900' : 'bg-white text-zinc-900'
+            ]"
+          >
+            {{ isSelected ? '✓ Dipilih' : '+ Pilih' }}
+          </button>
+          <button
+            @click.stop="handleDirectDownload"
+            class="text-white text-xs font-bold px-2 py-1 rounded bg-cyan-500/80 hover:bg-cyan-400 transition-colors touch-manipulation"
+          >
+            ⬇️
+          </button>
+        </div>
       </template>
 
     </div>
 
     <!-- Card Details Footer -->
     <div class="p-3 flex flex-col justify-between gap-2 flex-1 bg-white">
-      <div class="space-y-1 min-w-0">
-        <h3 class="font-bold text-xs text-zinc-900 truncate" :title="item.name || item.id">
+      <div class="space-y-0.5 min-w-0">
+        <h3 class="font-bold text-xs text-zinc-900 truncate leading-snug" :title="item.name || item.id">
           {{ item.name || item.label || `Media ${item.id.slice(0, 8)}` }}
         </h3>
         <p v-if="item.size" class="text-[10px] font-mono text-zinc-500">
-          Ukuran: {{ item.size }}
+          {{ item.size }}
         </p>
         <p v-else-if="item.isFolder" class="text-[10px] font-bold text-amber-700">
           Subdirektori Google Drive
@@ -107,13 +141,13 @@
       </div>
 
       <!-- Footer Buttons -->
-      <div class="flex items-center justify-between gap-1 pt-2 border-t border-zinc-100">
+      <div class="flex items-center justify-between gap-1 pt-1.5 border-t border-zinc-100">
         <template v-if="item.isFolder">
           <button
             @click.stop="gallery.enterSubfolder(item)"
-            class="text-[11px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 py-0.5"
+            class="text-[11px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 py-0.5 touch-manipulation"
           >
-            <span>👉</span> Masuk Direktori
+            <span>👉</span> Masuk
           </button>
           <a
             :href="item.rawUrl"
@@ -122,23 +156,27 @@
             @click.stop
             class="text-[11px] font-semibold text-zinc-500 hover:text-zinc-800"
           >
-            Akses Google Drive ↗
+            Drive ↗
           </a>
         </template>
         <template v-else>
+          <!-- Mobile: show select + download inline -->
           <button
-            @click.stop="handleAddToCompare"
-            class="text-[11px] font-semibold text-zinc-600 hover:text-zinc-900 flex items-center gap-1 py-0.5"
-            title="Sematkan pada panel komparasi berdampingan"
+            @click.stop="gallery.toggleSelect(item.id)"
+            :class="[
+              'text-[11px] font-bold flex items-center gap-1 py-0.5 touch-manipulation px-2 rounded transition-colors',
+              isSelected ? 'bg-amber-300 text-zinc-900' : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+            ]"
           >
-            <span>⊟</span> Komparasi
+            <span>{{ isSelected ? '✓' : '☐' }}</span>
+            <span>{{ isSelected ? 'Dipilih' : 'Pilih' }}</span>
           </button>
           <button
-            @click.stop="gallery.removeItem(item.id)"
-            class="text-[11px] font-semibold text-rose-500 hover:text-rose-700 py-0.5"
-            title="Hapus dari daftar sesi"
+            @click.stop="handleDirectDownload"
+            class="text-[11px] font-semibold text-cyan-700 hover:text-cyan-900 py-0.5 touch-manipulation"
+            title="Unduh berkas ini"
           >
-            Hapus
+            ⬇️ Unduh
           </button>
         </template>
       </div>
@@ -222,18 +260,48 @@ function handleCardClick() {
   if (props.item.isFolder) {
     gallery.enterSubfolder(props.item)
   } else {
-    gallery.openPreview(props.item)
+    // On mobile: tap toggles selection. On desktop: opens preview.
+    const isMobile = window.matchMedia('(hover: none)').matches
+    if (isMobile) {
+      gallery.toggleSelect(props.item.id)
+    } else {
+      gallery.openPreview(props.item)
+    }
   }
 }
 
-function handleAddToCompare() {
-  if (!gallery.compareA) {
-    gallery.setCompareA(props.item)
-  } else {
-    gallery.setCompareB(props.item)
-  }
-  gallery.viewMode = 'splitscreen'
+// Long-press support (mobile hold to select)
+let longPressTimer = null
+
+function handleLongPress() {
+  // Handled by native pointer events below
 }
+
+onMounted(() => {
+  if (!cardRef.value || props.item.isFolder) return
+
+  let pressTimer = null
+
+  cardRef.value.addEventListener('pointerdown', () => {
+    pressTimer = setTimeout(() => {
+      gallery.toggleSelect(props.item.id)
+      // Haptic feedback if available
+      if (navigator.vibrate) navigator.vibrate(30)
+    }, 450)
+  }, { passive: true })
+
+  cardRef.value.addEventListener('pointerup', () => {
+    clearTimeout(pressTimer)
+  }, { passive: true })
+
+  cardRef.value.addEventListener('pointerleave', () => {
+    clearTimeout(pressTimer)
+  }, { passive: true })
+
+  cardRef.value.addEventListener('pointermove', () => {
+    clearTimeout(pressTimer)
+  }, { passive: true })
+})
 
 function handleDirectDownload() {
   const filename = props.item.name || `media_${props.item.id}`

@@ -15,8 +15,6 @@ export const useGalleryStore = defineStore('gallery', () => {
 
   const apiKey = ref(envApiKey || localStorage.getItem(API_KEY_STORAGE) || '')
   const activeItem = ref(null)
-  const compareA = ref(null)
-  const compareB = ref(null)
 
   // Infinite scroll: Jumlah item yang dirender saat ini
   const visibleCount = ref(36)
@@ -26,9 +24,12 @@ export const useGalleryStore = defineStore('gallery', () => {
 
   // UI state
   const filter = ref('all') // 'all' | 'folder' | 'photo' | 'video'
-  const viewMode = ref('grid') // 'grid' | 'splitscreen'
   const sortOrder = ref('newest') // 'newest' | 'oldest' | 'name'
   const isSettingsOpen = ref(false)
+
+  // Share mode: null = normal, 'viewer' = read-only shared, 'editor' = full access shared
+  const shareMode = ref(null) // null | 'viewer' | 'editor'
+  const shareTabName = ref('')
 
   // Modal Dialog State
   const dialog = ref({
@@ -81,6 +82,9 @@ export const useGalleryStore = defineStore('gallery', () => {
     if (folderStack.value.length === 0) return currentTab.value?.name || ''
     return folderStack.value[folderStack.value.length - 1].name
   })
+
+  // Whether the user is in read-only / viewer mode
+  const isViewerMode = computed(() => shareMode.value === 'viewer')
 
   // ─── Computed Filters & Sorting ───────────────────────────
   const filteredItems = computed(() => {
@@ -254,8 +258,6 @@ export const useGalleryStore = defineStore('gallery', () => {
     currentTab.value.items = currentTab.value.items.filter(i => i.id !== id)
     currentTab.value.selectedIds = currentTab.value.selectedIds.filter(sId => sId !== id)
     if (activeItem.value?.id === id) activeItem.value = null
-    if (compareA.value?.id === id) compareA.value = null
-    if (compareB.value?.id === id) compareB.value = null
     saveTabsToStorage()
   }
 
@@ -265,8 +267,6 @@ export const useGalleryStore = defineStore('gallery', () => {
     currentTab.value.selectedIds = []
     currentTab.value.folderStack = []
     activeItem.value = null
-    compareA.value = null
-    compareB.value = null
     resetVisibleCount()
     saveTabsToStorage()
   }
@@ -275,8 +275,6 @@ export const useGalleryStore = defineStore('gallery', () => {
     tabs.value = []
     activeTabId.value = null
     activeItem.value = null
-    compareA.value = null
-    compareB.value = null
     resetVisibleCount()
     saveTabsToStorage()
   }
@@ -288,8 +286,6 @@ export const useGalleryStore = defineStore('gallery', () => {
     tabs.value = []
     activeTabId.value = null
     activeItem.value = null
-    compareA.value = null
-    compareB.value = null
     if ('caches' in window) {
       caches.keys().then(names => {
         names.forEach(name => caches.delete(name))
@@ -410,21 +406,16 @@ export const useGalleryStore = defineStore('gallery', () => {
     }
   }
 
-  // ─── Split Screen ─────────────────────────────────────────
-  function setCompareA(item) { compareA.value = item }
-  function setCompareB(item) { compareB.value = item }
-  function swapCompare() {
-    const temp = compareA.value
-    compareA.value = compareB.value
-    compareB.value = temp
-  }
-  function clearCompare() {
-    compareA.value = null
-    compareB.value = null
+  // ─── Share Mode ───────────────────────────────────────────
+  function setShareMode(mode, tabName = '') {
+    shareMode.value = mode
+    shareTabName.value = tabName
   }
 
   // ─── Storage Helpers ──────────────────────────────────────
   function saveTabsToStorage() {
+    // Don't persist in pure viewer mode (ephemeral session)
+    if (shareMode.value === 'viewer') return
     try {
       localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify(tabs.value))
     } catch {
@@ -458,14 +449,15 @@ export const useGalleryStore = defineStore('gallery', () => {
   }
 
   return {
-    tabs, activeTabId, currentTab, items, apiKey, activeItem, compareA, compareB, selectedIds, filter, viewMode, sortOrder, isSettingsOpen, dialog,
+    tabs, activeTabId, currentTab, items, apiKey, activeItem, selectedIds, filter, sortOrder, isSettingsOpen, dialog,
     visibleCount, visibleItems, hasMoreItems,
     folderStack, isNavigatingFolder, currentFolderName,
     filteredItems, folderCount, photoCount, videoCount, totalCount, selectedCount, isAllSelected, selectedItems, activeIndex,
+    shareMode, shareTabName, isViewerMode,
     setApiKey, createTab, switchTab, closeTab, addSingleUrl, removeItem, clearCurrentTab, clearAll, clearAbsoluteCache, enterSubfolder, goToBreadcrumb,
     showModal, closeModal, loadMore, resetVisibleCount,
     toggleSelect, selectAll, deselectAll,
     openPreview, closePreview, prevItem, nextItem,
-    setCompareA, setCompareB, swapCompare, clearCompare,
+    setShareMode,
   }
 })
