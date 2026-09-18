@@ -35,21 +35,40 @@
             </p>
           </div>
 
-          <!-- Generated Link -->
-          <div class="space-y-2">
-            <p class="text-xs font-extrabold text-zinc-700 uppercase tracking-wide">Tautan Siap Dibagikan</p>
-            <div class="flex items-stretch gap-2">
-              <div class="flex-1 bg-zinc-50 border border-zinc-300 rounded-neo px-3 py-2 text-[11px] font-mono text-zinc-600 truncate select-all min-w-0">
-                {{ generatedLink }}
+          <!-- Generated Link & Formatted Message -->
+          <div class="space-y-3">
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <p class="text-xs font-extrabold text-zinc-700 uppercase tracking-wide">Pesan Siap Kirim (WhatsApp / Chat)</p>
+                <span class="text-[10px] text-zinc-400 font-medium">Lengkap dengan judul folder</span>
               </div>
+              <div class="bg-zinc-50 border-2 border-zinc-900 rounded-neo p-3 text-[11px] text-zinc-800 font-mono leading-relaxed space-y-1 select-all">
+                <p class="font-bold text-zinc-900">📂 Dokumentasi: {{ folderName }}</p>
+                <p class="text-zinc-600">Akses &amp; unduh foto/video acara resolusi tinggi di sini:</p>
+                <p class="text-indigo-600 break-all underline">{{ generatedLink }}</p>
+              </div>
+            </div>
+
+            <div class="flex items-stretch gap-2 pt-1">
               <button
-                @click="handleCopy"
+                @click="handleCopyMessage"
                 :class="[
-                  'btn-neo text-xs px-3 py-2 flex-shrink-0',
-                  copied ? 'bg-emerald-300 text-zinc-900' : 'bg-zinc-900 text-white hover:bg-zinc-700'
+                  'btn-neo text-xs flex-1 py-2.5 flex items-center justify-center gap-2 transition-all',
+                  copiedMsg ? 'bg-emerald-300 text-zinc-900' : 'bg-amber-300 hover:bg-amber-400 text-zinc-900'
                 ]"
               >
-                {{ copied ? '✓ Disalin!' : '📋 Salin Tautan' }}
+                <span>{{ copiedMsg ? '✅' : '📋' }}</span>
+                <span class="font-bold">{{ copiedMsg ? 'Pesan Lengkap Disalin!' : 'Salin Pesan + Tautan' }}</span>
+              </button>
+              <button
+                @click="handleCopyLinkOnly"
+                :class="[
+                  'btn-neo-white text-xs px-3 py-2.5 flex-shrink-0 transition-all text-zinc-700',
+                  copiedLink ? 'bg-emerald-100 border-emerald-600 text-emerald-900' : ''
+                ]"
+                title="Hanya salin alamat tautan saja"
+              >
+                {{ copiedLink ? '✓ Link Disalin' : 'Hanya Link' }}
               </button>
             </div>
           </div>
@@ -79,24 +98,40 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 const gallery = useGalleryStore()
 
-const copied = ref(false)
+const copiedMsg = ref(false)
+const copiedLink = ref(false)
 
 // Direct viewer link with API key included automatically
 const generatedLink = computed(() =>
   generateShareLink(props.folderId, props.folderName, gallery.apiKey, 'viewer')
 )
 
-async function handleCopy() {
+const fullMessage = computed(() => {
+  return `📂 Dokumentasi: ${props.folderName}\nAkses & unduh foto/video acara resolusi tinggi di sini:\n${generatedLink.value}`
+})
+
+async function handleCopyMessage() {
+  const ok = await copyToClipboard(fullMessage.value)
+  if (ok) {
+    copiedMsg.value = true
+    setTimeout(() => { copiedMsg.value = false }, 2500)
+  }
+}
+
+async function handleCopyLinkOnly() {
   const ok = await copyToClipboard(generatedLink.value)
   if (ok) {
-    copied.value = true
-    setTimeout(() => { copied.value = false }, 2500)
+    copiedLink.value = true
+    setTimeout(() => { copiedLink.value = false }, 2500)
   }
 }
 
 function close() { emit('close') }
 
 watch(() => props.isOpen, (v) => {
-  if (v) copied.value = false
+  if (v) {
+    copiedMsg.value = false
+    copiedLink.value = false
+  }
 })
 </script>
