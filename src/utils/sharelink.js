@@ -8,7 +8,7 @@
  * The person opening the link must have their own API Key configured.
  */
 
-const BASE = '/ukm-gallery-picker/'
+const BASE = '/gdrive-recapper/'
 
 function b64Encode(obj) {
   const json = JSON.stringify(obj)

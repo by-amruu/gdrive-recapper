@@ -1,6 +1,6 @@
 # GDrive Media Recapper 📸⚡
 
-[![Deploy to GitHub Pages](https://github.com/by-amruu/ukm-gallery-picker/actions/workflows/deploy.yml/badge.svg)](https://github.com/by-amruu/ukm-gallery-picker/actions/workflows/deploy.yml)
+[![Deploy to GitHub Pages](https://github.com/by-amruu/gdrive-recapper/actions/workflows/deploy.yml/badge.svg)](https://github.com/by-amruu/gdrive-recapper/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
 [![Vue 3](https://img.shields.io/badge/Vue-3.5-emerald.svg)](https://vuejs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v3.4-cyan.svg)](https://tailwindcss.com/)
@@ -8,6 +8,8 @@
 
 > **Aplikasi web previewer & media picker Google Drive modern berestetika Light Semi Neo-Brutalism.**  
 > Dirancang khusus untuk mempermudah divisi Media & Kreatif / PDD (Publikasi, Dokumentasi, Desain) organisasi kampus dalam menyortir, membandingkan, serta mengunduh foto dan video dari ribuan aset dokumentasi acara untuk materi konten Instagram (Feed/Reels/Stories).
+
+🌐 **Demo Live:** [https://by-amruu.github.io/gdrive-recapper/](https://by-amruu.github.io/gdrive-recapper/)
 
 ---
 
