@@ -9,8 +9,6 @@
 > **Aplikasi web previewer & media picker Google Drive modern berestetika Light Semi Neo-Brutalism.**  
 > Dirancang khusus untuk mempermudah divisi Media & Kreatif / PDD (Publikasi, Dokumentasi, Desain) organisasi kampus dalam menyortir, membandingkan, serta mengunduh foto dan video dari ribuan aset dokumentasi acara untuk materi konten Instagram (Feed/Reels/Stories).
 
-🌐 **Demo Live:** [https://by-amruu.github.io/ukm-gallery-picker/](https://by-amruu.github.io/ukm-gallery-picker/)
-
 ---
 
 ## ✨ Fitur Unggulan
