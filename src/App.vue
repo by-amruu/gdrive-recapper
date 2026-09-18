@@ -4,24 +4,21 @@
     <!-- Share Mode Banner (Viewer / Editor) -->
     <ShareBanner />
 
-    <!-- Top Navbar (hidden in viewer-only mode to keep UI minimal) -->
-    <Navbar />
+    <!-- Top Navbar -->
+    <Navbar @open-share="openShareModal" />
 
     <!-- Main Content Area -->
     <main class="flex-1 max-w-[1720px] mx-auto w-full px-3 sm:px-6 lg:px-8 py-5 space-y-4">
       
-      <!-- Input Bar: only shown for editor/normal mode -->
+      <!-- Input Bar: hidden in viewer-only mode -->
       <InputBar v-if="!gallery.isViewerMode" />
 
-      <!-- Window Tabs Bar: 1 Folder = 1 Tab (hidden in viewer mode — single folder) -->
+      <!-- Folder Tab Bar: hidden in viewer mode -->
       <FolderTabBar v-if="!gallery.isViewerMode" />
 
-      <!-- Grid Gallery -->
+      <!-- Gallery Area -->
       <div class="space-y-4">
-        <!-- Filter & Quick Action Bar with Breadcrumbs -->
         <FilterBar v-if="gallery.totalCount > 0" />
-
-        <!-- Media Grid -->
         <GalleryGrid />
       </div>
 
@@ -30,7 +27,7 @@
     <!-- Bottom Selection Action Bar -->
     <SelectionToolbar />
 
-    <!-- Fullscreen Native Image/Video Preview Modal -->
+    <!-- Fullscreen Preview Modal -->
     <FullscreenPreview />
 
     <!-- Share Link Modal -->
@@ -41,10 +38,7 @@
       @close="shareLinkModal.isOpen = false"
     />
 
-    <!-- Settings API Key Modal -->
-    <SettingsModal />
-
-    <!-- Global Custom Confirm/Alert Dialog Modal -->
+    <!-- Global Confirm Dialog -->
     <ConfirmModal
       :is-open="gallery.dialog.isOpen"
       :title="gallery.dialog.title"
@@ -58,7 +52,7 @@
       @cancel="onDialogCancel"
     />
 
-    <!-- Footer with Creator Credit -->
+    <!-- Footer -->
     <footer class="py-6 text-center text-xs font-semibold text-zinc-500 border-t-2 border-zinc-900/10 mt-12 bg-white/60 flex flex-col items-center justify-center gap-1.5">
       <p class="text-zinc-700 font-bold">
         GDrive Media Recapper &bull; Dokumentasi &amp; Konten Acara Kampus
@@ -88,7 +82,6 @@ import FilterBar from '@/components/FilterBar.vue'
 import GalleryGrid from '@/components/GalleryGrid.vue'
 import FullscreenPreview from '@/components/FullscreenPreview.vue'
 import SelectionToolbar from '@/components/SelectionToolbar.vue'
-import SettingsModal from '@/components/SettingsModal.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ShareLinkModal from '@/components/ShareLinkModal.vue'
 import ShareBanner from '@/components/ShareBanner.vue'
@@ -98,36 +91,29 @@ import { fetchFolderContents } from '@/utils/gdrive'
 
 const gallery = useGalleryStore()
 
-// Share link modal state
 const shareLinkModal = reactive({
   isOpen: false,
   folderId: '',
   folderName: '',
 })
 
-// Expose to children through provide or global event bus isn't needed — 
-// Navbar emits share link open requests via a store action we add here
-gallery.$onShareOpen = (folderId, folderName) => {
+function openShareModal({ folderId, folderName }) {
   shareLinkModal.folderId = folderId
   shareLinkModal.folderName = folderName
   shareLinkModal.isOpen = true
 }
 
 function onDialogConfirm() {
-  if (gallery.dialog.onConfirm) {
-    gallery.dialog.onConfirm()
-  }
+  if (gallery.dialog.onConfirm) gallery.dialog.onConfirm()
   gallery.closeModal()
 }
 
 function onDialogCancel() {
-  if (gallery.dialog.onCancel) {
-    gallery.dialog.onCancel()
-  }
+  if (gallery.dialog.onCancel) gallery.dialog.onCancel()
   gallery.closeModal()
 }
 
-// ─── Handle incoming share link on page load ───────────────────
+// Handle incoming ?share= link on page load
 onMounted(async () => {
   const shared = parseShareLink()
   if (!shared) return
@@ -135,31 +121,26 @@ onMounted(async () => {
   // Set share mode
   gallery.setShareMode(shared.role, shared.name)
 
-  // If API key is embedded in the link, use it
+  // Auto-apply shared API Key if included
   if (shared.apiKey) {
     gallery.setApiKey(shared.apiKey)
   }
 
   if (!gallery.apiKey) {
     gallery.showModal({
-      title: 'Kunci API Diperlukan',
-      message: 'Tautan berbagi ini membutuhkan Google Drive API Key untuk memuat isi folder. Silakan masukkan API Key Anda di menu pengaturan.',
-      icon: '🔑',
-      confirmText: 'Buka Pengaturan',
-      showCancel: true,
-      cancelText: 'Batal',
-      onConfirm: () => {
-        gallery.isSettingsOpen = true
-      }
+      title: 'Kunci API Tidak Ditemukan',
+      message: 'Tautan berbagi ini tidak menyertakan Google Drive API Key atau konfigurasi environment belum disiapkan.',
+      icon: '⚠️',
+      confirmText: 'Mengerti',
+      showCancel: false
     })
     return
   }
 
-  // Load the shared folder
   try {
     const { folderName, items } = await fetchFolderContents(shared.folderId, gallery.apiKey)
     gallery.createTab(shared.folderId, shared.name || folderName, items)
-    // Clear URL params without reload (clean up the share URL from address bar)
+    // Clean URL params from address bar
     window.history.replaceState({}, '', window.location.pathname)
   } catch (e) {
     gallery.showModal({

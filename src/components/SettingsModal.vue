@@ -51,10 +51,26 @@
             <ol class="list-decimal list-inside space-y-1 text-zinc-600 pl-1">
               <li>Akses konsol resmi <a href="https://console.cloud.google.com/" target="_blank" class="text-indigo-600 underline font-semibold">Google Cloud Console</a>.</li>
               <li>Pilih atau inisialisasi proyek baru.</li>
-              <li>Aktifkan API <strong>Google Drive API</strong> pada pustaka layanan.</li>
-              <li>Masuk ke menu <strong>Credentials</strong> &gt; pilih <strong>Create Credentials &gt; API key</strong>.</li>
-              <li>Pastikan direktori Google Drive yang diakses telah diatur hak akses publik: <em>"Anyone with the link can view"</em>.</li>
+              <li>Aktifkan layanan <strong>Google Drive API</strong>.</li>
+              <li>Masuk ke menu <strong>Credentials &gt; Create Credentials &gt; API key</strong>.</li>
             </ol>
+          </div>
+
+          <!-- Danger Zone: Clear Cache & Reset -->
+          <div class="border-t-2 border-zinc-900 pt-4 mb-5">
+            <label class="block text-xs font-bold uppercase tracking-wider text-zinc-800 mb-2">
+              Pembersihan &amp; Reset Sesi
+            </label>
+            <p class="text-[11px] text-zinc-500 mb-3">
+              Menghapus seluruh cache berkas di peramban dan mengosongkan seluruh tab galeri yang sedang aktif.
+            </p>
+            <button
+              @click="confirmClearAll"
+              class="w-full btn-neo bg-rose-100 hover:bg-rose-200 text-rose-800 text-xs py-2 flex items-center justify-center gap-2 border-rose-400"
+            >
+              <span>⚡</span>
+              <span>Bersihkan Cache &amp; Kosongkan Sesi</span>
+            </button>
           </div>
 
           <!-- Buttons -->
@@ -98,5 +114,21 @@ function saveKey() {
     savedMsg.value = ''
     gallery.isSettingsOpen = false
   }, 1000)
+}
+
+function confirmClearAll() {
+  gallery.isSettingsOpen = false
+  gallery.showModal({
+    title: 'Hapus Cache & Kosongkan Sesi',
+    message: 'Tindakan ini akan mengosongkan seluruh tab galeri dan menghapus seluruh cache data di peramban, lalu me-reload aplikasi.',
+    icon: '⚡',
+    confirmText: 'Ya, Bersihkan & Kosongkan',
+    isDanger: true,
+    showCancel: true,
+    onConfirm: () => {
+      gallery.clearAll()
+      gallery.clearAbsoluteCache()
+    }
+  })
 }
 </script>

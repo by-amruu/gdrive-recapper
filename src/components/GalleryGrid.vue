@@ -3,15 +3,23 @@
     <!-- Empty State -->
     <div
       v-if="gallery.totalCount === 0"
-      class="neo-card p-12 text-center bg-white border-dashed space-y-3"
+      class="neo-card p-10 sm:p-14 text-center bg-white border-dashed space-y-3"
     >
       <div class="w-16 h-16 mx-auto rounded-full bg-amber-200 border-2 border-zinc-900 flex items-center justify-center text-3xl shadow-neo-sm">
         📂
       </div>
-      <h3 class="font-extrabold text-base text-zinc-900">Belum Ada Direktori yang Dimuat</h3>
-      <p class="text-xs text-zinc-500 max-w-sm mx-auto">
-        Silakan tempelkan tautan folder atau berkas Google Drive pada formulir di atas untuk memulai kurasi dan pengunduhan dokumentasi.
-      </p>
+      <template v-if="gallery.isViewerMode">
+        <h3 class="font-extrabold text-base text-zinc-900">Memuat Galeri...</h3>
+        <p class="text-xs text-zinc-500 max-w-sm mx-auto">
+          Galeri sedang diinisialisasi dari tautan berbagi. Pastikan API Key sudah dikonfigurasi di Pengaturan.
+        </p>
+      </template>
+      <template v-else>
+        <h3 class="font-extrabold text-base text-zinc-900">Belum Ada Direktori Dimuat</h3>
+        <p class="text-xs text-zinc-500 max-w-sm mx-auto">
+          Tempelkan tautan folder Google Drive pada formulir di atas untuk mulai memuat galeri dokumentasi.
+        </p>
+      </template>
     </div>
 
     <!-- Filter Zero Match State -->

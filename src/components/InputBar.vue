@@ -90,13 +90,11 @@ async function handleSubmit() {
   const hasFolder = lines.some(l => isFolderUrl(l))
   if (hasFolder && !gallery.apiKey) {
     gallery.showModal({
-      title: 'Autentikasi API Diperlukan',
-      message: 'Google Drive API Key belum dikonfigurasi. Silakan lengkapi pengaturan kredensial Anda untuk melanjutkan pembacaan folder.',
-      icon: '🔑',
-      confirmText: 'Buka Pengaturan',
-      onConfirm: () => {
-        gallery.isSettingsOpen = true
-      }
+      title: 'Kunci API Diperlukan',
+      message: 'Kunci Google Drive API belum terdeteksi dari GitHub Environment (VITE_GDRIVE_API_KEY). Pastikan environment variabel sudah diset pada proses build.',
+      icon: '⚠️',
+      confirmText: 'Mengerti',
+      showCancel: false
     })
     return
   }
