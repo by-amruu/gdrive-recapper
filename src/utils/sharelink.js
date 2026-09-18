@@ -30,31 +30,96 @@ function b64Decode(str) {
 }
 
 /**
- * Generate a shareable link with embedded API key
+ * Generate a concise shareable link.
+ * If the environment API key matches, we only need ?f=FOLDER_ID (super short!).
+ * If a specific custom apiKey is provided and differs from env, we encode compactly.
  */
 export function generateShareLink(folderId, folderName, apiKey = '', role = 'viewer') {
-  const payload = { folderId, name: folderName, apiKey: apiKey || '' }
-  const encoded = b64Encode(payload)
   const origin = window.location.origin
-  return `${origin}${BASE}?share=${encoded}&role=${role}`
+  const envKey = import.meta.env.VITE_GDRIVE_API_KEY || ''
+
+  // If apiKey is empty or matches the site's environment key,
+  // we can create an ultra-clean & short link: ?f=<folderId>
+  if (!apiKey || apiKey === envKey) {
+    const params = new URLSearchParams()
+    params.set('f', folderId)
+    if (folderName && folderName !== 'Folder' && folderName !== 'Dokumentasi') {
+      params.set('n', folderName)
+    }
+    if (role && role !== 'viewer') {
+      params.set('r', role)
+    }
+    return `${origin}${BASE}?${params.toString()}`
+  }
+
+  // Compact payload: [folderId, folderName, apiKey, role]
+  const payload = [folderId, folderName || '', apiKey, role || 'viewer']
+  const encoded = b64Encode(payload)
+  return `${origin}${BASE}?s=${encoded}`
 }
 
 /**
- * Parse ?share= params from current URL
+ * Parse share params from current URL.
+ * Supports:
+ * 1. Ultra-short format: ?f=<folderId>&n=<folderName>&r=<role>
+ * 2. Compact base64 format: ?s=<encoded>
+ * 3. Legacy base64 format: ?share=<encoded>&role=<role>
  */
 export function parseShareLink() {
   const params = new URLSearchParams(window.location.search)
-  const encoded = params.get('share')
-  const role = params.get('role') || 'viewer'
-  if (!encoded) return null
-  const payload = b64Decode(encoded)
-  if (!payload || !payload.folderId) return null
-  return {
-    folderId: payload.folderId,
-    name: payload.name || 'Folder Dibagikan',
-    apiKey: payload.apiKey || '',
-    role: role === 'editor' ? 'editor' : 'viewer',
+
+  // 1. Ultra-short format (?f=...)
+  if (params.has('f')) {
+    const folderId = params.get('f')
+    if (!folderId) return null
+    const name = params.get('n') || 'Folder Dibagikan'
+    const role = params.get('r') === 'editor' ? 'editor' : 'viewer'
+    return {
+      folderId,
+      name,
+      apiKey: '', // Will use VITE_GDRIVE_API_KEY directly from environment
+      role,
+    }
   }
+
+  // 2. Compact base64 format (?s=...)
+  if (params.has('s')) {
+    const raw = params.get('s')
+    const decoded = b64Decode(raw)
+    if (Array.isArray(decoded) && decoded[0]) {
+      return {
+        folderId: decoded[0],
+        name: decoded[1] || 'Folder Dibagikan',
+        apiKey: decoded[2] || '',
+        role: decoded[3] === 'editor' ? 'editor' : 'viewer',
+      }
+    }
+    if (decoded && decoded.folderId) {
+      return {
+        folderId: decoded.folderId,
+        name: decoded.name || 'Folder Dibagikan',
+        apiKey: decoded.apiKey || '',
+        role: decoded.role === 'editor' ? 'editor' : 'viewer',
+      }
+    }
+  }
+
+  // 3. Legacy format (?share=...)
+  const encoded = params.get('share')
+  if (encoded) {
+    const role = params.get('role') || 'viewer'
+    const payload = b64Decode(encoded)
+    if (payload && payload.folderId) {
+      return {
+        folderId: payload.folderId,
+        name: payload.name || 'Folder Dibagikan',
+        apiKey: payload.apiKey || '',
+        role: role === 'editor' ? 'editor' : 'viewer',
+      }
+    }
+  }
+
+  return null
 }
 
 /** Copy text to clipboard */
