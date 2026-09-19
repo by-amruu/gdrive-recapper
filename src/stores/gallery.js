@@ -23,6 +23,10 @@ export const useGalleryStore = defineStore('gallery', () => {
   const sortOrder = ref('newest')
   const isSettingsOpen = ref(false)
 
+  // ─── Pagination (500 items per page) ────────────────────────
+  const currentPage = ref(1)
+  const pageSize = ref(500)
+
   // Share mode: null = normal owner session, 'viewer' = readonly, 'editor' = full via link
   const shareMode = ref(null)
   const shareTabName = ref('')
@@ -92,8 +96,21 @@ export const useGalleryStore = defineStore('gallery', () => {
     return list
   })
 
-  const visibleItems = computed(() => filteredItems.value.slice(0, visibleCount.value))
-  const hasMoreItems = computed(() => visibleCount.value < filteredItems.value.length)
+  // ─── Pagination Computeds ──────────────────────────────────
+  const totalPages = computed(() => {
+    return Math.max(1, Math.ceil(filteredItems.value.length / pageSize.value))
+  })
+
+  const pageStartIndex = computed(() => (currentPage.value - 1) * pageSize.value)
+  const pageEndIndex = computed(() => Math.min(pageStartIndex.value + pageSize.value, filteredItems.value.length))
+
+  const paginatedItems = computed(() => {
+    return filteredItems.value.slice(pageStartIndex.value, pageEndIndex.value)
+  })
+
+  // Backwards compatibility for preview & visible items
+  const visibleItems = computed(() => paginatedItems.value)
+  const hasMoreItems = computed(() => false) // replaced by page buttons
 
   const folderCount = computed(() => items.value.filter(i => i.isFolder || i.type === 'folder').length)
   const photoCount = computed(() => items.value.filter(i => i.type === 'photo').length)
@@ -165,15 +182,29 @@ export const useGalleryStore = defineStore('gallery', () => {
     saveTabsToStorage()
   }
 
-  // ─── Infinite Scroll ───────────────────────────────────────
-  function loadMore() {
-    if (hasMoreItems.value) {
-      visibleCount.value = Math.min(visibleCount.value + PAGE_CHUNK, filteredItems.value.length)
+  // ─── Pagination Actions ───────────────────────────────────
+  function setPage(page) {
+    if (page >= 1 && page <= totalPages.value) {
+      currentPage.value = page
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  function nextPage() {
+    if (currentPage.value < totalPages.value) {
+      setPage(currentPage.value + 1)
+    }
+  }
+
+  function prevPage() {
+    if (currentPage.value > 1) {
+      setPage(currentPage.value - 1)
     }
   }
 
   function resetVisibleCount() {
     visibleCount.value = 36
+    currentPage.value = 1
   }
 
   // ─── Actions ──────────────────────────────────────────────
@@ -360,6 +391,8 @@ export const useGalleryStore = defineStore('gallery', () => {
   return {
     tabs, activeTabId, currentTab, items, apiKey, activeItem, selectedIds,
     filter, sortOrder, isSettingsOpen, dialog,
+    currentPage, pageSize, totalPages, pageStartIndex, pageEndIndex, paginatedItems,
+    setPage, nextPage, prevPage,
     visibleCount, visibleItems, hasMoreItems,
     folderStack, isNavigatingFolder, currentFolderName,
     filteredItems, folderCount, photoCount, videoCount, totalCount,
@@ -367,7 +400,7 @@ export const useGalleryStore = defineStore('gallery', () => {
     shareMode, shareTabName, isViewerMode,
     setApiKey, createTab, switchTab, closeTab, addSingleUrl, removeItem,
     clearCurrentTab, clearAll, clearAbsoluteCache, enterSubfolder, goToBreadcrumb,
-    showModal, closeModal, loadMore, resetVisibleCount,
+    showModal, closeModal, resetVisibleCount,
     toggleSelect, selectAll, deselectAll,
     openPreview, closePreview, prevItem, nextItem,
     setShareMode,

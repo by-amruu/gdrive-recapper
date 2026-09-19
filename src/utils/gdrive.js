@@ -98,21 +98,32 @@ export async function fetchFolderContents(folderId, apiKey) {
     // ignore
   }
 
-  // 2. Query all children (files + subfolders)
+  // 2. Query all children (files + subfolders) with pagination loop
   const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`)
-  const fields = encodeURIComponent('files(id, name, mimeType, size, thumbnailLink, webContentLink, imageMediaMetadata, videoMediaMetadata)')
-  const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&pageSize=1000&orderBy=folder,name&key=${apiKey}`
+  const fields = encodeURIComponent('nextPageToken, files(id, name, mimeType, size, thumbnailLink, webContentLink, imageMediaMetadata, videoMediaMetadata)')
+  let allFiles = []
+  let pageToken = null
 
-  const response = await fetch(url)
-  const data = await response.json()
+  do {
+    let url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&pageSize=1000&orderBy=folder,name&key=${apiKey}`
+    if (pageToken) {
+      url += `&pageToken=${encodeURIComponent(pageToken)}`
+    }
 
-  if (!response.ok) {
-    const errorMsg = data.error?.message || 'Gagal mengambil isi folder dari Google Drive API.'
-    throw new Error(errorMsg)
-  }
+    const response = await fetch(url)
+    const data = await response.json()
 
-  const files = data.files || []
-  const items = files.map(file => {
+    if (!response.ok) {
+      const errorMsg = data.error?.message || 'Gagal mengambil isi folder dari Google Drive API.'
+      throw new Error(errorMsg)
+    }
+
+    const files = data.files || []
+    allFiles = allFiles.concat(files)
+    pageToken = data.nextPageToken || null
+  } while (pageToken)
+
+  const items = allFiles.map(file => {
     const isFolder = file.mimeType === 'application/vnd.google-apps.folder'
     const isVideo = file.mimeType?.startsWith('video/')
     const inferredType = isFolder ? 'folder' : (isVideo ? 'video' : detectType(file.name))

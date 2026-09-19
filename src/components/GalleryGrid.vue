@@ -36,11 +36,56 @@
       </button>
     </div>
 
-    <!-- Bento Masonry Grid dengan Infinite Scroll Cerdas (Lazy Render) -->
+    <!-- Grid Gallery dengan Pagination 500 Berkas -->
     <template v-else>
+      <!-- Top Pagination Info & Controls (Shown if more than 500 items) -->
+      <div
+        v-if="gallery.totalPages > 1"
+        class="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-white border-2 border-zinc-900 rounded-neo shadow-neo-sm"
+      >
+        <div class="flex items-center gap-2 text-xs font-bold text-zinc-800">
+          <span class="px-2 py-0.5 bg-amber-200 border border-zinc-900 rounded font-mono">
+            Hal. {{ gallery.currentPage }} / {{ gallery.totalPages }}
+          </span>
+          <span class="text-zinc-500">
+            (Menampilkan {{ gallery.pageStartIndex + 1 }} - {{ gallery.pageEndIndex }} dari {{ gallery.filteredItems.length }} berkas)
+          </span>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <button
+            @click="gallery.prevPage"
+            :disabled="gallery.currentPage === 1"
+            class="btn-neo text-xs px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            ← Sebelumnya
+          </button>
+
+          <!-- Page select dropdown for quick jump -->
+          <select
+            :value="gallery.currentPage"
+            @change="gallery.setPage(Number($event.target.value))"
+            class="text-xs font-bold bg-white border-2 border-zinc-900 rounded-neo px-2 py-1 shadow-neo-sm cursor-pointer"
+          >
+            <option v-for="p in gallery.totalPages" :key="p" :value="p">
+              Halaman {{ p }}
+            </option>
+          </select>
+
+          <button
+            @click="gallery.nextPage"
+            :disabled="gallery.currentPage === gallery.totalPages"
+            class="btn-neo text-xs px-3 py-1.5 bg-amber-300 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Selanjutnya →
+          </button>
+        </div>
+      </div>
+
+      <!-- Natural Grid Item Flow -->
       <div class="bento-masonry">
         <div
-          v-for="item in gallery.visibleItems"
+          v-for="item in gallery.paginatedItems"
           :key="item.id"
           class="bento-item"
         >
@@ -48,69 +93,61 @@
         </div>
       </div>
 
-      <!-- Infinite Scroll Trigger Element -->
+      <!-- Bottom Pagination Bar -->
       <div
-        v-if="gallery.hasMoreItems"
-        ref="infiniteSentinelRef"
-        class="py-8 flex flex-col items-center justify-center gap-2"
+        v-if="gallery.totalPages > 1"
+        class="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white border-2 border-zinc-900 rounded-neo shadow-neo mt-6"
       >
-        <div class="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-zinc-900 rounded-neo shadow-neo-sm text-xs font-bold text-zinc-700">
-          <span class="animate-spin text-sm">⏳</span>
-          <span>Menampilkan berkas selanjutnya ({{ gallery.visibleItems.length }} dari {{ gallery.filteredItems.length }})...</span>
+        <div class="text-xs font-bold text-zinc-700 text-center sm:text-left">
+          Halaman <span class="font-extrabold text-zinc-900">{{ gallery.currentPage }}</span> dari <span class="font-extrabold text-zinc-900">{{ gallery.totalPages }}</span>
+          <span class="text-zinc-500 font-normal ml-1">({{ gallery.pageStartIndex + 1 }}–{{ gallery.pageEndIndex }} dari {{ gallery.filteredItems.length }} media)</span>
         </div>
-      </div>
 
-      <!-- All items loaded note -->
-      <div
-        v-else-if="gallery.filteredItems.length > 36"
-        class="py-6 text-center text-xs font-bold text-zinc-400"
-      >
-        ✓ Seluruh {{ gallery.filteredItems.length }} berkas telah dimuat sempurna
+        <div class="flex items-center gap-2">
+          <button
+            @click="gallery.setPage(1)"
+            :disabled="gallery.currentPage === 1"
+            class="btn-neo-white text-xs px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Ke Halaman Pertama"
+          >
+            « Awal
+          </button>
+          <button
+            @click="gallery.prevPage"
+            :disabled="gallery.currentPage === 1"
+            class="btn-neo bg-zinc-100 hover:bg-zinc-200 text-xs px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            ← Sebelumnya
+          </button>
+
+          <span class="text-xs font-extrabold px-3 py-1 bg-amber-300 border-2 border-zinc-900 rounded-neo shadow-neo-sm font-mono">
+            {{ gallery.currentPage }}
+          </span>
+
+          <button
+            @click="gallery.nextPage"
+            :disabled="gallery.currentPage === gallery.totalPages"
+            class="btn-neo bg-amber-300 hover:bg-amber-400 text-xs px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Selanjutnya →
+          </button>
+          <button
+            @click="gallery.setPage(gallery.totalPages)"
+            :disabled="gallery.currentPage === gallery.totalPages"
+            class="btn-neo-white text-xs px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Ke Halaman Terakhir"
+          >
+            Akhir »
+          </button>
+        </div>
       </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useGalleryStore } from '@/stores/gallery'
 import MediaCard from '@/components/MediaCard.vue'
 
 const gallery = useGalleryStore()
-const infiniteSentinelRef = ref(null)
-let observer = null
-
-function setupObserver() {
-  if (observer) observer.disconnect()
-
-  observer = new IntersectionObserver((entries) => {
-    const entry = entries[0]
-    if (entry && entry.isIntersecting && gallery.hasMoreItems) {
-      gallery.loadMore()
-    }
-  }, {
-    rootMargin: '400px 0px',
-    threshold: 0.1
-  })
-
-  if (infiniteSentinelRef.value) {
-    observer.observe(infiniteSentinelRef.value)
-  }
-}
-
-onMounted(() => {
-  setupObserver()
-})
-
-watch(infiniteSentinelRef, (newEl) => {
-  if (newEl) setupObserver()
-})
-
-watch(() => [gallery.filter, gallery.sortOrder], () => {
-  gallery.resetVisibleCount()
-})
-
-onUnmounted(() => {
-  if (observer) observer.disconnect()
-})
 </script>
